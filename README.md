@@ -46,6 +46,7 @@ The planned server and apps must be genuinely native to each declared target ope
 - [Read-only native Unix socket service](docs/local-service.md)
 - [Initial threat model](docs/threat-model.md)
 - [Synthetic downstream consent-enforcement experiment](docs/synthetic-adapter.md)
+- [Synthetic adapter contract v1 — choice revisions and idempotency](docs/adapter-contract-v1.md)
 
 This **public** repository must not contain credentials, private keys, production data, private infrastructure details, or private incident information. Project planning documents are not a substitute for GoreeCloud's authoritative governance. Licensing and first supported platforms are to be decided before implementation.
 
@@ -62,3 +63,5 @@ GOOS=linux GOARCH=amd64 go build ./cmd/...
 A passing source build does not establish representative-device installation, runtime acceptance, recovery, platform support or Stable status.
 
 An additional stacked development branch, `feat/synthetic-adapter-gating`, demonstrates a purpose-specific local enforcement check using an ephemeral in-memory synthetic adapter and a `goreeshieldsim` CLI. This is **not** real product-source enforcement or a verified remote revocation protocol. See [synthetic adapter scope](docs/synthetic-adapter.md).
+
+A further stacked branch, `feat/choice-revisions-idempotency`, adds monotonic local consent revisions and an internal versioned synthetic operation envelope with bounded in-memory duplicate handling. **It is not a remote adapter API, durable authorization token or privacy-rights completion proof.** The [adapter contract v1 experiment](docs/adapter-contract-v1.md) documents exact limits and production prerequisites.
