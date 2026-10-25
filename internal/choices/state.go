@@ -16,6 +16,7 @@ type Choice struct {
 
 type State struct {
 	SchemaVersion int               `json:"schema_version"`
+	Revision      uint64            `json:"revision"`
 	Choices       map[string]Choice `json:"choices"`
 }
 
@@ -23,6 +24,10 @@ func EmptyState() State { return State{SchemaVersion: 1, Choices: map[string]Cho
 
 // Allowed always fails closed for missing, unknown, or outdated grants.
 func (s State) Allowed(purposeID string) bool {
+	// Legacy state lacking a revision cannot authorize a new synthetic action.
+	if s.Revision == 0 {
+		return false
+	}
 	purpose, ok := FindPurpose(purposeID)
 	if !ok {
 		return false
@@ -48,6 +53,10 @@ func (s *State) Grant(purposeID, noticeVersion string, affirmative bool, now tim
 	if s.Choices == nil {
 		s.Choices = map[string]Choice{}
 	}
+	if s.Revision == ^uint64(0) {
+		return errors.New("choice revision exhausted")
+	}
+	s.Revision++
 	s.Choices[purposeID] = Choice{Granted: true, NoticeVersion: purpose.NoticeVersion, ChangedAt: now.UTC()}
 	return nil
 }
@@ -63,6 +72,10 @@ func (s *State) Withdraw(purposeID string, now time.Time) error {
 	if s.Choices == nil {
 		s.Choices = map[string]Choice{}
 	}
+	if s.Revision == ^uint64(0) {
+		return errors.New("choice revision exhausted")
+	}
+	s.Revision++
 	s.Choices[purposeID] = Choice{Granted: false, NoticeVersion: purpose.NoticeVersion, ChangedAt: now.UTC()}
 	return nil
 }
