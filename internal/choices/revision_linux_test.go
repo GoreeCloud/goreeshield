@@ -45,13 +45,17 @@ func TestRevisionGateSerializesWithdrawal(t *testing.T) {
 	close(release)
 	select {
 	case err := <-actionDone:
-		if err != nil { t.Fatal(err) }
+		if err != nil {
+			t.Fatal(err)
+		}
 	case <-time.After(3 * time.Second):
 		t.Fatal("gated action timeout")
 	}
 	select {
 	case err := <-withdrawDone:
-		if err != nil { t.Fatal(err) }
+		if err != nil {
+			t.Fatal(err)
+		}
 	case <-time.After(3 * time.Second):
 		t.Fatal("withdrawal timeout")
 	}
