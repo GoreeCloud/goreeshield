@@ -19,11 +19,13 @@ jobs:
         with:
           go-version-file: go.mod
           cache: false
-      - name: Normalize Go formatting in isolated runner
-        run: gofmt -w ./cmd/goreeshield ./internal/choices
+      - name: Show formatting differences
+        run: gofmt -d ./cmd ./internal
+      - name: Normalize Go formatting for build validation
+        run: gofmt -w ./cmd ./internal
       - name: Unit and integration tests (race detector)
         run: go test -race ./...
       - name: Static analysis
         run: go vet ./...
       - name: Native Linux build
-        run: GOOS=linux GOARCH=amd64 go build ./cmd/goreeshield
+        run: GOOS=linux GOARCH=amd64 go build ./cmd/...
