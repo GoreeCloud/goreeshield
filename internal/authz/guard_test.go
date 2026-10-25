@@ -27,16 +27,16 @@ func TestGuardValidatesEveryClaimDimension(t *testing.T) {
 		NotBefore: now.Add(-time.Minute), ExpiresAt: now.Add(time.Minute),
 	}
 	base := Guard{
-		Verifier: fixtureVerifier{claims: valid},
-		ExpectedIssuer: "synthetic-issuer",
+		Verifier:         fixtureVerifier{claims: valid},
+		ExpectedIssuer:   "synthetic-issuer",
 		ExpectedAudience: "goreeshield-fixture",
-		Now: func() time.Time { return now },
+		Now:              func() time.Time { return now },
 	}
 	if err := base.Check(context.Background(), "synthetic-fixture", "subject-a", "privacy.synthetic.execute"); err != nil {
 		t.Fatal(err)
 	}
 	for _, tc := range []struct {
-		name string
+		name   string
 		change func(*Claims)
 	}{
 		{"wrong-issuer", func(c *Claims) { c.Issuer = "untrusted-issuer" }},
