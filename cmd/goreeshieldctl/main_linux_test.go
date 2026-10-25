@@ -26,7 +26,7 @@ func TestReadOnlyControlClient(t *testing.T) {
 	case err := <-done:
 		stop()
 		t.Fatalf("server start: %v", err)
-	case <-time.After(3*time.Second):
+	case <-time.After(3 * time.Second):
 		stop()
 		t.Fatal("server start timeout")
 	}

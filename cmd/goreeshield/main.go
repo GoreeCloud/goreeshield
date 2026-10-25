@@ -25,9 +25,15 @@ func usage(w io.Writer) {
 }
 
 func run(args []string, out io.Writer) error {
-	if len(args) == 0 { usage(out); return errors.New("command required") }
+	if len(args) == 0 {
+		usage(out)
+		return errors.New("command required")
+	}
 	cmd := args[0]
-	if cmd == "help" || cmd == "--help" { usage(out); return nil }
+	if cmd == "help" || cmd == "--help" {
+		usage(out)
+		return nil
+	}
 	switch cmd {
 	case "notice", "status", "check", "grant", "withdraw":
 	default:
@@ -39,22 +45,38 @@ func run(args []string, out io.Writer) error {
 	purposeID := fs.String("purpose", "", "registered processing purpose")
 	noticeVersion := fs.String("notice-version", "", "version of notice reviewed")
 	ack := fs.Bool("acknowledge", false, "I reviewed the notice and explicitly choose to enable this example")
-	if err := fs.Parse(args[1:]); err != nil { return err }
-	if fs.NArg() != 0 { return errors.New("unexpected positional arguments") }
-	if cmd != "grant" && (*ack || *noticeVersion != "") { return errors.New("acknowledgement and notice version only apply to grant") }
-	if cmd == "status" && *purposeID != "" { return errors.New("status does not accept a purpose") }
-	if cmd != "status" && *purposeID == "" { return errors.New("--purpose is required") }
-	if cmd != "grant" && *ack { return errors.New("--acknowledge is only for grant") }
+	if err := fs.Parse(args[1:]); err != nil {
+		return err
+	}
+	if fs.NArg() != 0 {
+		return errors.New("unexpected positional arguments")
+	}
+	if cmd != "grant" && (*ack || *noticeVersion != "") {
+		return errors.New("acknowledgement and notice version only apply to grant")
+	}
+	if cmd == "status" && *purposeID != "" {
+		return errors.New("status does not accept a purpose")
+	}
+	if cmd != "status" && *purposeID == "" {
+		return errors.New("--purpose is required")
+	}
+	if cmd != "grant" && *ack {
+		return errors.New("--acknowledge is only for grant")
+	}
 	path := *statePath
 	if path == "" {
 		var err error
 		path, err = choices.DefaultPath()
-		if err != nil { return err }
+		if err != nil {
+			return err
+		}
 	}
 	store := choices.Store{Path: path}
 	if cmd == "notice" {
 		p, ok := choices.FindPurpose(*purposeID)
-		if !ok { return errors.New("unknown processing purpose") }
+		if !ok {
+			return errors.New("unknown processing purpose")
+		}
 		fmt.Fprintf(out, "%s (notice version %s)\nPurpose: %s\nData: %s\nRecipients: %s\nRetention: %s\n", p.Name, p.NoticeVersion, p.Notice, p.Data, p.Recipient, p.Retention)
 		fmt.Fprintln(out, "This is a nonfunctional synthetic demonstration. The optional choice is disabled until explicitly granted.")
 		return nil
@@ -62,27 +84,41 @@ func run(args []string, out io.Writer) error {
 	if cmd == "grant" {
 		if err := store.Update(func(s *choices.State) error {
 			return s.Grant(*purposeID, *noticeVersion, *ack, time.Now().UTC())
-		}); err != nil { return err }
+		}); err != nil {
+			return err
+		}
 		fmt.Fprintf(out, "%s: local opt-in recorded; no data processing was started.\n", *purposeID)
 		return nil
 	}
 	if cmd == "withdraw" {
 		if err := store.Update(func(s *choices.State) error {
 			return s.Withdraw(*purposeID, time.Now().UTC())
-		}); err != nil { return err }
+		}); err != nil {
+			return err
+		}
 		fmt.Fprintf(out, "%s: local choice withdrawn; no external service was contacted.\n", *purposeID)
 		return nil
 	}
 	state, err := store.Read()
-	if err != nil { return err }
+	if err != nil {
+		return err
+	}
 	if cmd == "check" {
-		if _, ok := choices.FindPurpose(*purposeID); !ok { return errors.New("unknown processing purpose") }
-		if state.Allowed(*purposeID) { fmt.Fprintln(out, "GRANTED (local demonstration only)") } else { fmt.Fprintln(out, "DENIED (default or withdrawn)") }
+		if _, ok := choices.FindPurpose(*purposeID); !ok {
+			return errors.New("unknown processing purpose")
+		}
+		if state.Allowed(*purposeID) {
+			fmt.Fprintln(out, "GRANTED (local demonstration only)")
+		} else {
+			fmt.Fprintln(out, "DENIED (default or withdrawn)")
+		}
 		return nil
 	}
 	for _, p := range choices.Registry() {
 		result := "disabled"
-		if state.Allowed(p.ID) { result = "granted for local demonstration" }
+		if state.Allowed(p.ID) {
+			result = "granted for local demonstration"
+		}
 		fmt.Fprintf(out, "%s: %s\n", p.ID, result)
 	}
 	return nil

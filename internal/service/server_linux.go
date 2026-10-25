@@ -36,11 +36,11 @@ type PurposeStatus struct {
 }
 
 type Response struct {
-	OK       bool            `json:"ok"`
-	Error    string          `json:"error,omitempty"`
-	Statuses []PurposeStatus `json:"statuses,omitempty"`
+	OK       bool             `json:"ok"`
+	Error    string           `json:"error,omitempty"`
+	Statuses []PurposeStatus  `json:"statuses,omitempty"`
 	Purpose  *choices.Purpose `json:"purpose,omitempty"`
-	Allowed  *bool           `json:"allowed,omitempty"`
+	Allowed  *bool            `json:"allowed,omitempty"`
 }
 
 type Server struct {
