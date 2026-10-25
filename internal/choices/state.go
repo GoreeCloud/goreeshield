@@ -12,6 +12,7 @@ type Choice struct {
 	Granted       bool      `json:"granted"`
 	NoticeVersion string    `json:"notice_version"`
 	ChangedAt     time.Time `json:"changed_at"`
+	Revision      uint64    `json:"revision,omitempty"`
 }
 
 type State struct {
@@ -33,7 +34,7 @@ func (s State) Allowed(purposeID string) bool {
 		return false
 	}
 	choice, ok := s.Choices[purposeID]
-	return ok && choice.Granted && choice.NoticeVersion == purpose.NoticeVersion && !choice.ChangedAt.IsZero()
+	return ok && choice.Granted && choice.Revision > 0 && choice.Revision <= s.Revision && choice.NoticeVersion == purpose.NoticeVersion && !choice.ChangedAt.IsZero()
 }
 
 func (s *State) Grant(purposeID, noticeVersion string, affirmative bool, now time.Time) error {
@@ -57,7 +58,7 @@ func (s *State) Grant(purposeID, noticeVersion string, affirmative bool, now tim
 		return errors.New("choice revision exhausted")
 	}
 	s.Revision++
-	s.Choices[purposeID] = Choice{Granted: true, NoticeVersion: purpose.NoticeVersion, ChangedAt: now.UTC()}
+	s.Choices[purposeID] = Choice{Granted: true, NoticeVersion: purpose.NoticeVersion, ChangedAt: now.UTC(), Revision: s.Revision}
 	return nil
 }
 
@@ -76,7 +77,7 @@ func (s *State) Withdraw(purposeID string, now time.Time) error {
 		return errors.New("choice revision exhausted")
 	}
 	s.Revision++
-	s.Choices[purposeID] = Choice{Granted: false, NoticeVersion: purpose.NoticeVersion, ChangedAt: now.UTC()}
+	s.Choices[purposeID] = Choice{Granted: false, NoticeVersion: purpose.NoticeVersion, ChangedAt: now.UTC(), Revision: s.Revision}
 	return nil
 }
 
@@ -88,8 +89,8 @@ func (s State) Validate() error {
 		if _, ok := FindPurpose(id); !ok {
 			return fmt.Errorf("unrecognized purpose in state: %q", id)
 		}
-		if c.NoticeVersion == "" || c.ChangedAt.IsZero() {
-			return fmt.Errorf("invalid stored decision for %q", id)
+		if c.NoticeVersion == "" || c.ChangedAt.IsZero() || c.Revision > s.Revision {
+			return fmt.Errorf("invalid or future-revision stored decision for %q", id)
 		}
 	}
 	return nil
