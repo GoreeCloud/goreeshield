@@ -5,6 +5,8 @@
 package service
 
 import (
+	"bufio"
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -132,7 +134,14 @@ func (s Server) handle(conn *net.UnixConn) {
 		return
 	}
 
-	decoder := json.NewDecoder(io.LimitReader(conn, maxRequestBytes+1))
+	// The protocol is one newline-terminated JSON request per connection.
+	// Do not block waiting for the client to close its write side before reply.
+	line, err := bufio.NewReader(io.LimitReader(conn, maxRequestBytes+1)).ReadBytes('\n')
+	if err != nil || len(line) > maxRequestBytes {
+		_ = json.NewEncoder(conn).Encode(Response{Error: "invalid or oversized request"})
+		return
+	}
+	decoder := json.NewDecoder(bytes.NewReader(line))
 	decoder.DisallowUnknownFields()
 	var req Request
 	if err := decoder.Decode(&req); err != nil {
