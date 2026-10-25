@@ -53,8 +53,12 @@ func TestRevisionFencesStaleGrantsAndIdempotentReplay(t *testing.T) {
 		t.Fatalf("stale revision after regrant must deny: %+v %v", result, err)
 	}
 	current, err := store.Read()
-	if err != nil { t.Fatal(err) }
-	if current.Revision != 3 { t.Fatalf("want revision 3, got %d", current.Revision) }
+	if err != nil {
+		t.Fatal(err)
+	}
+	if current.Revision != 3 {
+		t.Fatalf("want revision 3, got %d", current.Revision)
+	}
 	fresh := request
 	fresh.OperationID = "op-004"
 	fresh.ChoiceRevision = current.Revision
@@ -65,7 +69,9 @@ func TestRevisionFencesStaleGrantsAndIdempotentReplay(t *testing.T) {
 
 func TestConcurrentIdenticalOperationsExecuteOnce(t *testing.T) {
 	store := choices.Store{Path: filepath.Join(t.TempDir(), "private", "choices.json")}
-	if err := store.Update(func(s *choices.State) error { return s.Grant("demo-local-metrics", "1", true, time.Now().UTC()) }); err != nil { t.Fatal(err) }
+	if err := store.Update(func(s *choices.State) error { return s.Grant("demo-local-metrics", "1", true, time.Now().UTC()) }); err != nil {
+		t.Fatal(err)
+	}
 	p := &Processor{Store: store, Sink: &Sink{}}
 	req := contract.Request{Version: contract.Version, OperationID: "op-race", PurposeID: "demo-local-metrics", NoticeVersion: "1", ChoiceRevision: 1}
 	var wg sync.WaitGroup
@@ -83,9 +89,17 @@ func TestConcurrentIdenticalOperationsExecuteOnce(t *testing.T) {
 	wg.Wait()
 	close(resultCh)
 	close(errCh)
-	for err := range errCh { if err != nil { t.Fatal(err) } }
+	for err := range errCh {
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
 	executions := 0
-	for result := range resultCh { if result.Executed { executions++ } }
+	for result := range resultCh {
+		if result.Executed {
+			executions++
+		}
+	}
 	if executions != 1 || p.Sink.Count("demo-local-metrics") != 1 {
 		t.Fatalf("concurrent duplicate applied %d times, sink %d", executions, p.Sink.Count("demo-local-metrics"))
 	}
@@ -101,10 +115,14 @@ func TestInvalidEnvelopeAndSourceStateCannotExecute(t *testing.T) {
 		{Version: 1, OperationID: "op-good", PurposeID: "demo-local-metrics", NoticeVersion: "0", ChoiceRevision: 1},
 		{Version: 1, OperationID: "op-good", PurposeID: "demo-local-metrics", NoticeVersion: "1", ChoiceRevision: 0},
 	} {
-		if result, err := p.Process(bad); err == nil || result.Executed { t.Fatalf("invalid request accepted: %+v %v", bad, err) }
+		if result, err := p.Process(bad); err == nil || result.Executed {
+			t.Fatalf("invalid request accepted: %+v %v", bad, err)
+		}
 	}
 	if result, err := p.Process(request); err != nil || result.Executed || result.Status != "denied" {
 		t.Fatalf("missing state should deny: %+v %v", result, err)
 	}
-	if p.Sink.Count("demo-local-metrics") != 0 { t.Fatal("unexpected synthetic event") }
+	if p.Sink.Count("demo-local-metrics") != 0 {
+		t.Fatal("unexpected synthetic event")
+	}
 }
