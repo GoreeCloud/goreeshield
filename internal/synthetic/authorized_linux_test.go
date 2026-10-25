@@ -42,10 +42,10 @@ func TestGuardedSyntheticProcessorRejectsImpersonationAndRevocation(t *testing.T
 	}
 	makeGuard := func(c authz.Claims) authz.Guard {
 		return authz.Guard{
-			Verifier: fixtureIdentity{claims: c},
-			ExpectedIssuer: "synthetic-issuer",
+			Verifier:         fixtureIdentity{claims: c},
+			ExpectedIssuer:   "synthetic-issuer",
 			ExpectedAudience: "goreeshield-fixture",
-			Now: func() time.Time { return now },
+			Now:              func() time.Time { return now },
 		}
 	}
 	proxy := GuardedProcessor{Guard: makeGuard(claims), Engine: engine, LocalSubject: "subject-a"}
