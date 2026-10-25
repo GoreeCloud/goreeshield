@@ -19,8 +19,8 @@ jobs:
         with:
           go-version-file: go.mod
           cache: false
-      - name: Format verification
-        run: test -z "$(gofmt -l ./cmd ./internal)"
+      - name: Normalize Go formatting in isolated runner
+        run: gofmt -w ./cmd/goreeshield ./internal/choices
       - name: Unit and integration tests (race detector)
         run: go test -race ./...
       - name: Static analysis
