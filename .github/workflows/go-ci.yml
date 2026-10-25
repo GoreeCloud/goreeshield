@@ -1,0 +1,29 @@
+name: Linux prototype checks
+
+on:
+  push:
+    branches:
+      - "feat/**"
+      - "planning/**"
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: false
+      - name: Verify committed Go formatting
+        run: test -z "$(gofmt -l ./cmd ./internal)"
+      - name: Unit and integration tests (race detector)
+        run: go test -race ./...
+      - name: Static analysis
+        run: go vet ./...
+      - name: Native Linux build
+        run: GOOS=linux GOARCH=amd64 go build ./cmd/...

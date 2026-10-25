@@ -1,0 +1,7 @@
+# Never commit private local choice state or compiled executables.
+/goreeshield
+/coverage.out
+/choices.json
+/.choices.lock
+*.tmp
+.DS_Store

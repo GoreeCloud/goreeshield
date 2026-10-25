@@ -1,0 +1,14 @@
+[Unit]
+Description=GoreeShield synthetic local-only privacy choice status service
+Documentation=https://github.com/GoreeCloud/goreeshield
+
+[Service]
+Type=simple
+ExecStart=%h/.local/bin/goreeshieldd
+Restart=on-failure
+RestartSec=5
+UMask=0077
+NoNewPrivileges=true
+
+[Install]
+WantedBy=default.target
