@@ -16,11 +16,11 @@ const Version = 1
 // Request records the synthetic purpose and exact local revision previously
 // observed. The caller must recheck at execution time; this is not a grant.
 type Request struct {
-	Version          int
-	OperationID      string
-	PurposeID        string
-	NoticeVersion    string
-	ChoiceRevision   uint64
+	Version        int
+	OperationID    string
+	PurposeID      string
+	NoticeVersion  string
+	ChoiceRevision uint64
 }
 
 // Validate performs structural validation, NOT identity verification.
