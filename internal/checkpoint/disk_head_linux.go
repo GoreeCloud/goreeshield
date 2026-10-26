@@ -134,3 +134,55 @@ func (s DiskHeadStore) Read(scope [32]byte) (Statement, error) {
 	})
 	return statement, err
 }
+
+const initializedHeadMarker = "goreeshield-owned-source-head-v1\n"
+
+func validateHeadMarker(path string) (bool, error) {
+	f, err := os.OpenFile(path+".initialized", os.O_RDONLY|syscall.O_NOFOLLOW, 0)
+	if errors.Is(err, os.ErrNotExist) {
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	defer f.Close()
+	if err := privateHeadFile(f); err != nil {
+		return false, err
+	}
+	raw, err := io.ReadAll(io.LimitReader(f, int64(len(initializedHeadMarker)+1)))
+	if err != nil || string(raw) != initializedHeadMarker {
+		return false, ErrHeadCorrupt
+	}
+	return true, nil
+}
+
+func initializeHeadMarker(path string) error {
+	exists, err := validateHeadMarker(path)
+	if err != nil {
+		return err
+	}
+	if exists {
+		return ErrHeadConflict
+	}
+	file, err := os.OpenFile(path+".initialized", os.O_CREATE|os.O_EXCL|os.O_WRONLY|syscall.O_NOFOLLOW, 0600)
+	if err != nil {
+		return err
+	}
+	if _, err := file.WriteString(initializedHeadMarker); err != nil {
+		file.Close()
+		return err
+	}
+	if err := file.Sync(); err != nil {
+		file.Close()
+		return err
+	}
+	if err := file.Close(); err != nil {
+		return err
+	}
+	directory, err := os.Open(filepath.Dir(path))
+	if err != nil {
+		return err
+	}
+	defer directory.Close()
+	return directory.Sync()
+}
