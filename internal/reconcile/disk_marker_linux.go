@@ -41,7 +41,11 @@ func journalMarked(path string) (bool, error) {
 // If the marker survives but the journal does not, recovery fails closed.
 func initializeJournalMarker(path string) error {
 	exists, err := journalMarked(path)
-	if err != nil || exists {
+	if err != nil {
+		return err
+	}
+	if exists {
+		_, err := readSourceLedger(path)
 		return err
 	}
 	f, err := os.OpenFile(journalMarkerPath(path), os.O_WRONLY|os.O_CREATE|os.O_EXCL|syscall.O_NOFOLLOW, 0600)
