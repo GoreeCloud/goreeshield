@@ -56,6 +56,7 @@ The planned server and apps must be genuinely native to each declared target ope
 - [Deterministic journal commit checkpoints](docs/journal-commit-checkpoints.md)
 - [Linux test subprocess interruption](docs/journal-process-interruption.md)
 - [Journal initialization marker and missing-history safeguards](docs/journal-presence-marker.md)
+- [Journal publication fail-closed guard and operator review](docs/journal-publication-guard.md)
 - [Ambiguous source acknowledgement recovery](docs/uncertain-source-acknowledgements.md)
 
 This **public** repository must not contain credentials, private keys, production data, private infrastructure details, or private incident information. Project planning documents are not a substitute for GoreeCloud's authoritative governance. Licensing and first supported platforms are to be decided before implementation.
@@ -111,3 +112,7 @@ The `test/journal-linux-process-interrupt-20261025` branch adds isolated Linux c
 ## Missing synthetic journal safeguard
 
 The `feat/journal-presence-marker` development branch stores a private initialization marker before publishing the first local source journal. After initialization, a missing or invalid journal can no longer silently reset operation history when the marker survives. Tests cover journal loss, marker corruption and permissions, unmarked legacy reads and first-write interruption. This only detects **some accidental local losses**, not malicious deletion, rollback, physical power loss or production rights fulfillment. See [journal presence marker](docs/journal-presence-marker.md).
+
+## Direct journal publication safety
+
+The `fix/journal-publication-guard` development branch closes a lower-level writer gap: once a synthetic journal is marked as initialized, direct writes first verify the existing authoritative history, refusing missing or corrupt state instead of silently replacing it. Development tests cover deletion, corruption, and interrupted first publication. Recovery requires operator-reviewed evidence; the prototype provides **no automatic repair or production-safe rollback detection**. See [journal publication guard](docs/journal-publication-guard.md).
