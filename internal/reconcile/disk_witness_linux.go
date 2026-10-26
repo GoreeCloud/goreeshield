@@ -86,8 +86,18 @@ func hashCurrentJournal(path string) (string, error) {
 
 func verifyJournalWitness(path string) error {
 	want, found, err := readJournalWitness(path)
-	if err != nil || !found {
+	if err != nil {
 		return err
+	}
+	if !found {
+		required, err := journalRequiresWitness(path)
+		if err != nil {
+			return err
+		}
+		if required {
+			return ErrWitnessMissing
+		}
+		return nil
 	}
 	got, err := hashCurrentJournal(path)
 	if err != nil {

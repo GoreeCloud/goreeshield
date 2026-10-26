@@ -15,6 +15,7 @@ var ErrJournalMissing = errors.New("initialized source journal missing")
 var ErrJournalMarker = errors.New("source journal marker invalid")
 
 const journalMarkerContents = "goreeshield-synthetic-journal-v1\n"
+const witnessRequiredMarkerContents = "goreeshield-synthetic-journal-v2:witness-required\n"
 
 func journalMarkerPath(path string) string { return path + ".initialized" }
 
@@ -30,8 +31,8 @@ func journalMarked(path string) (bool, error) {
 	if err := ownedPrivateRegular(f); err != nil {
 		return false, fmt.Errorf("%w: %v", ErrJournalMarker, err)
 	}
-	data, err := io.ReadAll(io.LimitReader(f, int64(len(journalMarkerContents)+1)))
-	if err != nil || string(data) != journalMarkerContents {
+	data, err := io.ReadAll(io.LimitReader(f, int64(len(witnessRequiredMarkerContents)+1)))
+	if err != nil || (string(data) != journalMarkerContents && string(data) != witnessRequiredMarkerContents) {
 		return false, ErrJournalMarker
 	}
 	return true, nil
