@@ -26,7 +26,7 @@ type DiskHeadStore struct {
 }
 
 type storedHead struct {
-	Version int `json:"version"`
+	Version   int       `json:"version"`
 	Statement Statement `json:"statement"`
 }
 
