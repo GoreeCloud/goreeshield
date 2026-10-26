@@ -48,7 +48,7 @@ func TestSyntheticAcknowledgementMissingAfterSourceCommit(t *testing.T) {
 	}
 	source := &DiskSource{Directory: d}
 	coord := Coordinator{
-		Guard: fixtureGuard("privacy.synthetic.execute", "privacy.synthetic.inspect"),
+		Guard:  fixtureGuard("privacy.synthetic.execute", "privacy.synthetic.inspect"),
 		Source: acknowledgementFixture{source: source},
 	}
 	req := fixtureRequest("op-ack-missing", 1)
@@ -73,7 +73,7 @@ func TestSyntheticAcknowledgementMissingBeforeSourceCommit(t *testing.T) {
 	d := scoped.Directory{Root: filepath.Join(t.TempDir(), "scopes")}
 	source := &DiskSource{Directory: d}
 	coord := Coordinator{
-		Guard: fixtureGuard("privacy.synthetic.execute", "privacy.synthetic.inspect"),
+		Guard:  fixtureGuard("privacy.synthetic.execute", "privacy.synthetic.inspect"),
 		Source: acknowledgementFixture{source: source, before: true},
 	}
 	req := fixtureRequest("op-no-commit", 1)
