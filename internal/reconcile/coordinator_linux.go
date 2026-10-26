@@ -44,3 +44,37 @@ func (c Coordinator) Dispatch(ctx context.Context, credential, tenant, subject s
 	out.Status = "pending_source_readback"
 	return out, nil
 }
+
+// Reconcile requires the separate synthetic inspect scope. A missing source
+// observation stays unresolved; mismatched request content yields conflict.
+// These are fixture outcomes, not independent privacy rights receipts.
+func (c Coordinator) Reconcile(ctx context.Context, credential, tenant, subject string, req contract.Request) (Receipt, error) {
+	out := Receipt{OperationID: req.OperationID, Status: "unresolved"}
+	if err := c.Guard.CheckTenant(ctx, credential, tenant, subject, "privacy.synthetic.inspect"); err != nil {
+		return out, err
+	}
+	if err := req.Validate(); err != nil {
+		return out, err
+	}
+	if c.Source == nil {
+		return out, ErrUnavailable
+	}
+	observed, err := c.Source.Inspect(ctx, tenant, subject, req.OperationID)
+	if err != nil {
+		return out, err
+	}
+	if !observed.Found {
+		return out, nil
+	}
+	if observed.OperationID != req.OperationID || observed.Request != req {
+		out.Status = "conflict"
+		return out, nil
+	}
+	switch observed.Status {
+	case "applied":
+		out.Status = "source_observed_applied"
+	case "denied":
+		out.Status = "source_observed_denied"
+	}
+	return out, nil
+}
