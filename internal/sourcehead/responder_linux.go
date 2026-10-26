@@ -9,6 +9,7 @@ import (
 	"crypto"
 	"crypto/ed25519"
 	"crypto/rand"
+	"crypto/subtle"
 	"errors"
 
 	"github.com/GoreeCloud/goreeshield/internal/checkpoint"
@@ -16,6 +17,7 @@ import (
 
 var ErrSignerUnavailable = errors.New("source-owned signer unavailable")
 var ErrSourceIdentity = errors.New("source-owned signing identity differs from durable head")
+var ErrSignerKeyMismatch = errors.New("source signer public key differs from the independently pinned key")
 
 // Responder reads source-owned durable history for each challenge and signs
 // with a caller-injected signer. The verifier must provision public-key trust
@@ -25,6 +27,9 @@ type Responder struct {
 	Signer crypto.Signer
 	Issuer string
 	KeyID  string
+	// PinnedPublicKey must be provisioned outside the mutable head store and
+	// outside the key-loading path. A missing pin refuses all signing.
+	PinnedPublicKey ed25519.PublicKey
 }
 
 // Respond signs the current source head. A failure to read persistent
@@ -40,6 +45,10 @@ func (r Responder) Respond(ctx context.Context, request checkpoint.HeadRequest) 
 	pub, ok := r.Signer.Public().(ed25519.PublicKey)
 	if !ok || len(pub) != ed25519.PublicKeySize {
 		return checkpoint.HeadProof{}, ErrSignerUnavailable
+	}
+	if len(r.PinnedPublicKey) != ed25519.PublicKeySize ||
+		subtle.ConstantTimeCompare(pub, r.PinnedPublicKey) != 1 {
+		return checkpoint.HeadProof{}, ErrSignerKeyMismatch
 	}
 	if request.ScopeDigest == ([32]byte{}) || request.Nonce == ([32]byte{}) {
 		return checkpoint.HeadProof{}, checkpoint.ErrInvalid
