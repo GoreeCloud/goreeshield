@@ -66,3 +66,18 @@ func TestLegacyUnmarkedJournalRemainsReadable(t *testing.T) {
 	n, err := (&DiskSource{Directory: d}).Count("tenant-one", "subject-one")
 	if err != nil || n != 0 { t.Fatalf("legacy journal unreadable: %d %v", n, err) }
 }
+
+func TestLegacyJournalGetsMarkerOnNextWrite(t *testing.T) {
+	d := scoped.Directory{Root: filepath.Join(t.TempDir(), "scopes")}
+	store, err := d.Store("tenant-one", "subject-one")
+	if err != nil { t.Fatal(err) }
+	path := sourceLedgerPath(store.Path)
+	if err := os.WriteFile(path, []byte("{\"version\":1,\"count\":0,\"records\":{}}\n"), 0600); err != nil { t.Fatal(err) }
+	source := &DiskSource{Directory: d}
+	req := fixtureRequest("op-legacy-denied", 1)
+	if err := source.Apply(context.Background(), "tenant-one", "subject-one", req); err != nil { t.Fatal(err) }
+	seen, err := journalMarked(path)
+	if err != nil || !seen { t.Fatalf("legacy journal not marked after write: %v", err) }
+	o, err := source.Inspect(context.Background(), "tenant-one", "subject-one", req.OperationID)
+	if err != nil || !o.Found || o.Status != "denied" { t.Fatalf("legacy update lost: %+v %v", o, err) }
+}
