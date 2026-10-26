@@ -169,6 +169,9 @@ func writeSourceLedgerWithCheckpoint(path string, ledger diskLedger, checkpoint 
 	if err := dir.Sync(); err != nil {
 		return fmt.Errorf("%w: parent directory sync failed: %v", ErrCommitUncertain, err)
 	}
+	if err := writeJournalWitness(path); err != nil {
+		return fmt.Errorf("%w: checksum witness publication: %v", ErrCommitUncertain, err)
+	}
 	return nil
 }
 
