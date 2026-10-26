@@ -88,3 +88,73 @@ func TestSignedCheckpointCannotCrossSyntheticScopes(t *testing.T) {
 		t.Fatal("synthetic subject scope digest was not isolated")
 	}
 }
+
+type sourceHeadFixture struct {
+	statement checkpoint.Statement
+	private   ed25519.PrivateKey
+	onRequest func() error
+}
+
+func (f sourceHeadFixture) CurrentHead(_ context.Context, request checkpoint.HeadRequest) (checkpoint.HeadProof, error) {
+	if f.onRequest != nil {
+		if err := f.onRequest(); err != nil {
+			return checkpoint.HeadProof{}, err
+		}
+	}
+	head := checkpoint.HeadProof{Statement: f.statement, Nonce: request.Nonce}
+	payload, err := checkpoint.HeadSigningPayload(head)
+	if err != nil {
+		return checkpoint.HeadProof{}, err
+	}
+	head.Signature = ed25519.Sign(f.private, payload)
+	return head, nil
+}
+
+func TestChallengedHeadRechecksJournalAfterProviderCall(t *testing.T) {
+	d := scoped.Directory{Root: filepath.Join(t.TempDir(), "scopes")}
+	ctx := context.Background()
+	source := &DiskSource{Directory: d}
+	if err := source.Apply(ctx, "tenant-one", "subject-one", fixtureRequest("head-op-a", 1)); err != nil {
+		t.Fatal(err)
+	}
+	store, err := d.Store("tenant-one", "subject-one")
+	if err != nil {
+		t.Fatal(err)
+	}
+	raw, err := os.ReadFile(sourceLedgerPath(store.Path))
+	if err != nil {
+		t.Fatal(err)
+	}
+	scope, err := checkpoint.ScopeDigest("tenant-one", "subject-one")
+	if err != nil {
+		t.Fatal(err)
+	}
+	pub, priv, err := ed25519.GenerateKey(rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	statement := checkpoint.Statement{
+		Version:       checkpoint.Version,
+		Issuer:        "source-fixture",
+		KeyID:         "ephemeral-fixture",
+		ScopeDigest:   scope,
+		Sequence:      9,
+		JournalDigest: sha256.Sum256(raw),
+	}
+	payload, err := checkpoint.SigningPayload(statement)
+	if err != nil {
+		t.Fatal(err)
+	}
+	proof := checkpoint.Proof{Statement: statement, Signature: ed25519.Sign(priv, payload)}
+	trust := checkpoint.Trust{Issuer: statement.Issuer, KeyID: statement.KeyID, PublicKey: pub}
+	provider := sourceHeadFixture{statement: statement, private: priv}
+	if err := VerifySyntheticJournalWithFreshHead(ctx, d, "tenant-one", "subject-one", proof, trust, provider); err != nil {
+		t.Fatalf("fresh signed fixture head rejected: %v", err)
+	}
+	provider.onRequest = func() error {
+		return source.Apply(ctx, "tenant-one", "subject-one", fixtureRequest("head-op-b", 1))
+	}
+	if err := VerifySyntheticJournalWithFreshHead(ctx, d, "tenant-one", "subject-one", proof, trust, provider); !errors.Is(err, checkpoint.ErrMismatch) {
+		t.Fatalf("concurrent journal update was not detected: %v", err)
+	}
+}
