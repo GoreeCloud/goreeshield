@@ -48,11 +48,11 @@ func TestExternallyTrustedHeadDetectsCoordinatedLocalRollback(t *testing.T) {
 		t.Fatal(err)
 	}
 	statement := checkpoint.Statement{
-		Version: checkpoint.Version,
-		Issuer: "external-source-fixture",
-		KeyID: "ephemeral-test-key",
-		ScopeDigest: scope,
-		Sequence: 10,
+		Version:       checkpoint.Version,
+		Issuer:        "external-source-fixture",
+		KeyID:         "ephemeral-test-key",
+		ScopeDigest:   scope,
+		Sequence:      10,
 		JournalDigest: sha256.Sum256(prior[0]),
 	}
 	payload, err := checkpoint.SigningPayload(statement)
