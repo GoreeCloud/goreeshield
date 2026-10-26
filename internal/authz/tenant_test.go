@@ -12,11 +12,11 @@ func TestGuardTenantAndSubjectMustMatchVerifiedClaims(t *testing.T) {
 	claims := Claims{
 		Issuer: "synthetic-issuer", Audience: "synthetic-audience",
 		Tenant: "tenant-one", Subject: "subject-one",
-		Scopes: []string{"privacy.synthetic.execute"},
+		Scopes:    []string{"privacy.synthetic.execute"},
 		NotBefore: now.Add(-time.Minute), ExpiresAt: now.Add(time.Minute),
 	}
 	guard := Guard{
-		Verifier: fixtureVerifier{claims: claims},
+		Verifier:       fixtureVerifier{claims: claims},
 		ExpectedIssuer: "synthetic-issuer", ExpectedAudience: "synthetic-audience",
 		Now: func() time.Time { return now },
 	}
@@ -24,9 +24,9 @@ func TestGuardTenantAndSubjectMustMatchVerifiedClaims(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, tc := range []struct {
-		tenant string
+		tenant  string
 		subject string
-		scope string
+		scope   string
 	}{
 		{"tenant-two", "subject-one", "privacy.synthetic.execute"},
 		{"", "subject-one", "privacy.synthetic.execute"},
