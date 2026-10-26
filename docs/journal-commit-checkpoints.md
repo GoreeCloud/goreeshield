@@ -4,7 +4,7 @@
 | --- | --- |
 | Owner | GoreeCloud |
 | Date | October 25, 2026 |
-| Status | Verified local development experiment pending final CI; not production-ready |
+| Status | Linux development checks passed; not power-loss verified or production-ready |
 | Base | [Ambiguous source acknowledgements](uncertain-source-acknowledgements.md) |
 | Source | `internal/reconcile/disk_storage_linux.go` |
 | Tests | `internal/reconcile/disk_checkpoint_linux_test.go` |

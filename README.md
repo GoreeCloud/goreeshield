@@ -54,6 +54,7 @@ The planned server and apps must be genuinely native to each declared target ope
 - [Linux cross-process journal and integrity verification](docs/journal-process-verification.md)
 - [Journal crash-recovery assessment and staged-file tests](docs/journal-crash-recovery-assessment.md)
 - [Deterministic journal commit checkpoints](docs/journal-commit-checkpoints.md)
+- [Linux test subprocess interruption](docs/journal-process-interruption.md)
 - [Ambiguous source acknowledgement recovery](docs/uncertain-source-acknowledgements.md)
 
 This **public** repository must not contain credentials, private keys, production data, private infrastructure details, or private incident information. Project planning documents are not a substitute for GoreeCloud's authoritative governance. Licensing and first supported platforms are to be decided before implementation.
@@ -101,3 +102,7 @@ The stacked `feat/journal-crash-recovery` branch adds local tests ensuring that 
 ## Local journal write checkpoints
 
 The `feat/journal-write-fault-invariants` branch distinguishes the **pre-rename failure** path from an **uncertain post-rename source commit**, returning a typed `ErrCommitUncertain` for failures while reopening or syncing the journal's parent directory. An internal checkpoint callback supports deterministic development tests without changing normal calls. Tests exercise journal visibility, temporary-file cleanup, exact source readback and duplicate replay. **These tests do not simulate process termination, power loss or real external effects.** See [journal commit checkpoints](docs/journal-commit-checkpoints.md).
+
+## Local writer-process interruption
+
+The `test/journal-linux-process-interrupt-20261025` branch adds isolated Linux child-process interruption checks at the private `before_rename` and `after_rename` journal checkpoints. Recovery is evaluated through fresh source readback and exact operation-ID replay behavior in temporary synthetic files. This is **not** a power-loss, external-source transaction, signed receipt or production readiness test. See [process interruption scope](docs/journal-process-interruption.md).
