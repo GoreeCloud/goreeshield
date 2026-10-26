@@ -25,6 +25,15 @@ These are **test objectives**, not claims that the current tool run has executed
 - If corruption or unsupported version is encountered, preserve existing files, stop writes, and surface an actionable error rather than silently resetting state.
 - Do not infer power-loss durability or real external exactly-once effects from ordinary Go tests or a clean process restart.
 
+## Verified local staging invariants
+
+Two development tests exercise recovery-adjacent cases without terminating a process at a writer checkpoint:
+
+- `TestStaleStagingFileDoesNotOverrideCommittedSource` writes a malformed file with the writer's staging prefix after a valid source commit. A fresh `DiskSource` still reads the exact committed observation; retrying the operation ID does not increment the synthetic counter again.
+- `TestStagingFileCannotRepairCorruptedCommittedJournal` leaves a valid-looking staged copy alongside a deliberately corrupted authoritative journal. A fresh source **refuses to read or accept new operations** instead of silently promoting untrusted staged bytes.
+
+These tests verify that stray temporary filenames are never treated as authoritative. They do not test a real kill at a rename or sync checkpoint, power loss, on-disk torn-write recovery, or production transaction guarantees.
+
 ## Current limitation
 
 This assessment does not itself implement interrupted-write injection or a test that forcibly terminates a source process at a known disk checkpoint. Source-writer edits and process-termination test changes were blocked in the current integration session. The production acceptance gate remains open.
