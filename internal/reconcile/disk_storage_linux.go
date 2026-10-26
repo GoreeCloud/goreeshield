@@ -140,7 +140,7 @@ func writeSourceLedger(path string, ledger diskLedger) error {
 	}
 	defer dir.Close()
 	if err := dir.Sync(); err != nil {
-		return fmt.Errorf("source journal rename completed, durability uncertain: %w", err)
+		return fmt.Errorf("%w: parent directory sync failed: %v", ErrCommitUncertain, err)
 	}
 	return nil
 }
