@@ -143,6 +143,11 @@ func writeSourceLedgerWithCheckpoint(path string, ledger diskLedger, checkpoint 
 	if err := os.Rename(name, path); err != nil {
 		return err
 	}
+	if checkpoint != nil {
+		if err := checkpoint("after_rename"); err != nil {
+			return fmt.Errorf("%w: after rename: %v", ErrCommitUncertain, err)
+		}
+	}
 	dir, err := os.Open(parent)
 	if err != nil {
 		return fmt.Errorf("%w: parent directory open failed: %v", ErrCommitUncertain, err)
