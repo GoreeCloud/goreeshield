@@ -21,11 +21,11 @@ const domain = "GoreeShield:source-checkpoint:v1\x00"
 // Statement describes a remote SOURCE-owned claim about a journal digest.
 // This is not evidence of data erasure or a real user rights fulfillment.
 type Statement struct {
-	Version uint16
-	Issuer string
-	KeyID string
-	ScopeDigest [32]byte
-	Sequence uint64
+	Version       uint16
+	Issuer        string
+	KeyID         string
+	ScopeDigest   [32]byte
+	Sequence      uint64
 	JournalDigest [32]byte
 }
 
@@ -37,17 +37,17 @@ type Proof struct {
 // Trust must be provisioned independently of the local journal and witness.
 // The private signing key must never be copied into GoreeShield.
 type Trust struct {
-	Issuer string
-	KeyID string
+	Issuer    string
+	KeyID     string
 	PublicKey ed25519.PublicKey
 }
 
 // Expected must come from a verified scope and an independently trusted
 // source head sequence, not a minimum loaded only from local journal files.
 type Expected struct {
-	ScopeDigest [32]byte
+	ScopeDigest     [32]byte
 	MinimumSequence uint64
-	JournalDigest [32]byte
+	JournalDigest   [32]byte
 }
 
 func validIdentifier(s string) bool {
