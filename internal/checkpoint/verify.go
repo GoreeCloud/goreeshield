@@ -3,6 +3,7 @@ package checkpoint
 import (
 	"bytes"
 	"crypto/ed25519"
+	"crypto/sha256"
 	"crypto/subtle"
 	"encoding/binary"
 	"errors"
@@ -123,4 +124,23 @@ func Verify(proof Proof, trust Trust, expected Expected) error {
 		return ErrStale
 	}
 	return nil
+}
+
+// ScopeDigest binds a source checkpoint to the exact tenant/subject tuple.
+// It exposes only a deterministic digest, NOT anonymous or unguessable data.
+// Both sides must use independently authenticated scope identifiers.
+func ScopeDigest(tenant, subject string) ([32]byte, error) {
+	if len(tenant) == 0 || len(subject) == 0 ||
+		len(tenant) > 255 || len(subject) > 255 {
+		return [32]byte{}, ErrInvalid
+	}
+	var payload bytes.Buffer
+	payload.WriteString("GoreeShield:source-scope:v1\x00")
+	for _, field := range []string{tenant, subject} {
+		if err := binary.Write(&payload, binary.BigEndian, uint16(len(field))); err != nil {
+			return [32]byte{}, fmt.Errorf("%w: scope length: %v", ErrInvalid, err)
+		}
+		payload.WriteString(field)
+	}
+	return sha256.Sum256(payload.Bytes()), nil
 }
