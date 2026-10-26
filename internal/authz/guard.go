@@ -16,6 +16,7 @@ type Claims struct {
 	Issuer    string
 	Audience  string
 	Subject   string
+	Tenant    string
 	Scopes    []string
 	NotBefore time.Time
 	ExpiresAt time.Time
@@ -39,6 +40,20 @@ type Guard struct {
 // issuer, audience, subject, scope and a valid time window. No delegation,
 // wildcard scope, or multi-subject authority exists in this experiment.
 func (g Guard) Check(ctx context.Context, credential, subject, requiredScope string) error {
+	return g.check(ctx, credential, "", subject, requiredScope)
+}
+
+// CheckTenant binds a synthetic request to BOTH a trusted tenant claim and
+// subject. The verifier is called exactly once. This is not token validation:
+// no real GoreeCloud Identity verifier is shipped or configured.
+func (g Guard) CheckTenant(ctx context.Context, credential, tenant, subject, requiredScope string) error {
+	if tenant == "" {
+		return ErrDenied
+	}
+	return g.check(ctx, credential, tenant, subject, requiredScope)
+}
+
+func (g Guard) check(ctx context.Context, credential, tenant, subject, requiredScope string) error {
 	if ctx == nil || ctx.Err() != nil {
 		return ErrDenied
 	}
@@ -56,6 +71,7 @@ func (g Guard) Check(ctx context.Context, credential, subject, requiredScope str
 	}
 	if now.IsZero() || claims.Issuer != g.ExpectedIssuer ||
 		claims.Audience != g.ExpectedAudience || claims.Subject != subject ||
+		(tenant != "" && claims.Tenant != tenant) ||
 		claims.NotBefore.IsZero() || claims.ExpiresAt.IsZero() ||
 		now.Before(claims.NotBefore) || !now.Before(claims.ExpiresAt) {
 		return ErrDenied
