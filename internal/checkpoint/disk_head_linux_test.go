@@ -104,3 +104,26 @@ func TestDiskHeadRejectsMissingAndDamagedHistory(t *testing.T) {
 		t.Fatalf("update reset missing history: %v", err)
 	}
 }
+
+func TestDiskHeadRejectsCorruptAndReadableState(t *testing.T) {
+	store := DiskHeadStore{Root: filepath.Join(t.TempDir(), "source-owned")}
+	if err := store.Initialize(headStatement(1)); err != nil {
+		t.Fatal(err)
+	}
+	path := store.path(headScope())
+	if err := os.Chmod(path, 0644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.Read(headScope()); !errors.Is(err, ErrHeadCorrupt) {
+		t.Fatalf("overly readable head accepted: %v", err)
+	}
+	if err := os.Chmod(path, 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, []byte("{"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.Advance(headStatement(2)); !errors.Is(err, ErrHeadCorrupt) {
+		t.Fatalf("corrupt head was replaced: %v", err)
+	}
+}
