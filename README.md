@@ -49,6 +49,7 @@ The planned server and apps must be genuinely native to each declared target ope
 - [Synthetic adapter contract v1 — choice revisions and idempotency](docs/adapter-contract-v1.md)
 - [Legacy consent migration and Identity trust boundary](docs/identity-boundary.md)
 - [Synthetic tenant/subject-scoped consent isolation](docs/scoped-consent.md)
+- [Source-owned synthetic outcome reconciliation](docs/source-reconciliation.md)
 
 This **public** repository must not contain credentials, private keys, production data, private infrastructure details, or private incident information. Project planning documents are not a substitute for GoreeCloud's authoritative governance. Licensing and first supported platforms are to be decided before implementation.
 
@@ -75,3 +76,7 @@ The `fix/legacy-consent-invariant-20261025` branch adds per-choice revision bind
 ## Subject and tenant isolation experiment
 
 The optional `feat/scoped-choice-isolation-20261025` branch models separately stored synthetic consent decisions for each **verified fixture tenant and subject**. The actual GoreeCloud Identity integration is not wired; all records remain under one Linux user and the initial unscoped CLI/service still exist. Hash-based filenames do not provide secrecy or same-user security isolation. See [scoped consent design](docs/scoped-consent.md) for current tests and production acceptance gates.
+
+## Source observation and reconciliation experiment
+
+The `feat/source-receipts` development branch adds a local, in-memory **mock source** and a separate coordinator. A submitted synthetic operation stays `pending_source_readback`; a separately authorized inspection must read the source's exact record before reporting a synthetic observation. Missing and conflicting outcomes remain unresolved or explicitly conflicted. No real source product is connected, no personal data is processed, and the in-memory observations are **not** durable receipts or verified privacy rights fulfillment. See [source reconciliation contract](docs/source-reconciliation.md).
