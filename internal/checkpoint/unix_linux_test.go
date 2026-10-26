@@ -20,9 +20,9 @@ import (
 
 type subprocessHeadBoot struct {
 	PublicKey ed25519.PublicKey `json:"public_key"`
-	Proof Proof `json:"proof"`
-	Scope [32]byte `json:"scope"`
-	Journal [32]byte `json:"journal"`
+	Proof     Proof             `json:"proof"`
+	Scope     [32]byte          `json:"scope"`
+	Journal   [32]byte          `json:"journal"`
 }
 
 // TestUnixHeadChild is a native test-only process. Its ephemeral secret key
