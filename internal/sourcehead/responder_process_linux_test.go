@@ -8,14 +8,15 @@ import (
 	"crypto/ed25519"
 	"crypto/rand"
 	"encoding/hex"
-	"fmt"
-	"syscall"
 	"encoding/json"
 	"errors"
+	"fmt"
+	"io"
 	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"syscall"
 	"testing"
 	"time"
 
@@ -191,7 +192,7 @@ func readTestOnlySigner(path string) (ed25519.PrivateKey, error) {
 		return nil, fmt.Errorf("test-only signer file is not owned, private and regular")
 	}
 	seed := make([]byte, ed25519.SeedSize)
-	if _, err := file.Read(seed); err != nil {
+	if _, err := io.ReadFull(file, seed); err != nil {
 		return nil, err
 	}
 	private := ed25519.NewKeyFromSeed(seed)
