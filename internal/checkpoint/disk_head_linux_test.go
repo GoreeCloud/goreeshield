@@ -16,11 +16,11 @@ func headScope() [32]byte {
 
 func headStatement(sequence uint64) Statement {
 	return Statement{
-		Version: Version,
-		Issuer: "fixture-owner",
-		KeyID: "fixture-key",
-		ScopeDigest: headScope(),
-		Sequence: sequence,
+		Version:       Version,
+		Issuer:        "fixture-owner",
+		KeyID:         "fixture-key",
+		ScopeDigest:   headScope(),
+		Sequence:      sequence,
 		JournalDigest: sha256.Sum256([]byte{byte(sequence)}),
 	}
 }
