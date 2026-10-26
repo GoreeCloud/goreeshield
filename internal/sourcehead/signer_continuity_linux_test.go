@@ -87,3 +87,27 @@ func TestPinnedSignerSurvivesFixtureProcessRestart(t *testing.T) {
 		t.Fatalf("source signed with a key different from the pinned fixture key: %v", err)
 	}
 }
+
+func TestTestOnlySigningFixtureRejectsUnsafeFile(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "seed")
+	if err := os.WriteFile(path, make([]byte, ed25519.SeedSize), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chmod(path, 0644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := readTestOnlySigner(path); err == nil {
+		t.Fatal("world-readable test signer fixture accepted")
+	}
+	if err := os.Chmod(path, 0600); err != nil {
+		t.Fatal(err)
+	}
+	link := filepath.Join(dir, "seed-link")
+	if err := os.Symlink(path, link); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := readTestOnlySigner(link); err == nil {
+		t.Fatal("symlinked signing fixture accepted")
+	}
+}
