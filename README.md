@@ -51,6 +51,7 @@ The planned server and apps must be genuinely native to each declared target ope
 - [Synthetic tenant/subject-scoped consent isolation](docs/scoped-consent.md)
 - [Source-owned synthetic outcome reconciliation](docs/source-reconciliation.md)
 - [Persistent synthetic source journal](docs/durable-source.md)
+- [Linux cross-process journal and integrity verification](docs/journal-process-verification.md)
 
 This **public** repository must not contain credentials, private keys, production data, private infrastructure details, or private incident information. Project planning documents are not a substitute for GoreeCloud's authoritative governance. Licensing and first supported platforms are to be decided before implementation.
 
@@ -85,3 +86,7 @@ The `feat/source-receipts` development branch adds a local, in-memory **mock sou
 ## Local durable source experiment
 
 The `feat/durable-source-journal` branch adds a strictly local `DiskSource` fixture. A synthetic counter and operation ID are saved together using a private Linux JSON journal, advisory file locking, atomic rename and source readback. Test objects can reopen the state and reject repeated IDs, invalid records and unsafe file permissions. This does **not** make real external processing exactly-once, does not provide tamper-proof receipts or source-independent verification, and has no live GoreeCloud Identity integration or production data. See [persistent source journal scope](docs/durable-source.md).
+
+## Cross-process recovery testing
+
+The `feat/durable-journal-process-tests` branch expands the local synthetic source journal with real Go test subprocesses exercising the same operation ID, additional journal/lock hardlink refusal, and corrupted-record validation. It is **not** a real source application or a completed power-loss/crash-recovery test. See the [process verification limitations](docs/journal-process-verification.md).
