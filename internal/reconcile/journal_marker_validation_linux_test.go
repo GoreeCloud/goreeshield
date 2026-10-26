@@ -8,6 +8,8 @@ import (
 	"errors"
 	"context"
 	"path/filepath"
+
+	"github.com/GoreeCloud/goreeshield/internal/scoped"
 )
 
 func TestMarkerValidationPending(t *testing.T) {
