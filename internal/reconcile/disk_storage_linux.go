@@ -136,7 +136,7 @@ func writeSourceLedger(path string, ledger diskLedger) error {
 	}
 	dir, err := os.Open(parent)
 	if err != nil {
-		return err
+		return fmt.Errorf("%w: parent directory open failed: %v", ErrCommitUncertain, err)
 	}
 	defer dir.Close()
 	if err := dir.Sync(); err != nil {
