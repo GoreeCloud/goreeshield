@@ -55,6 +55,7 @@ The planned server and apps must be genuinely native to each declared target ope
 - [Journal crash-recovery assessment and staged-file tests](docs/journal-crash-recovery-assessment.md)
 - [Deterministic journal commit checkpoints](docs/journal-commit-checkpoints.md)
 - [Linux test subprocess interruption](docs/journal-process-interruption.md)
+- [Journal initialization marker and missing-history safeguards](docs/journal-presence-marker.md)
 - [Ambiguous source acknowledgement recovery](docs/uncertain-source-acknowledgements.md)
 
 This **public** repository must not contain credentials, private keys, production data, private infrastructure details, or private incident information. Project planning documents are not a substitute for GoreeCloud's authoritative governance. Licensing and first supported platforms are to be decided before implementation.
@@ -106,3 +107,7 @@ The `feat/journal-write-fault-invariants` branch distinguishes the **pre-rename 
 ## Local writer-process interruption
 
 The `test/journal-linux-process-interrupt-20261025` branch adds isolated Linux child-process interruption checks at the private `before_rename` and `after_rename` journal checkpoints. Recovery is evaluated through fresh source readback and exact operation-ID replay behavior in temporary synthetic files. This is **not** a power-loss, external-source transaction, signed receipt or production readiness test. See [process interruption scope](docs/journal-process-interruption.md).
+
+## Missing synthetic journal safeguard
+
+The `feat/journal-presence-marker` development branch stores a private initialization marker before publishing the first local source journal. After initialization, a missing or invalid journal can no longer silently reset operation history when the marker survives. Tests cover journal loss, marker corruption and permissions, unmarked legacy reads and first-write interruption. This only detects **some accidental local losses**, not malicious deletion, rollback, physical power loss or production rights fulfillment. See [journal presence marker](docs/journal-presence-marker.md).
