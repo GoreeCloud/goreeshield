@@ -73,6 +73,9 @@ func readSourceLedger(path string) (diskLedger, error) {
 	}
 	file, err := os.OpenFile(path, os.O_RDONLY|syscall.O_NOFOLLOW, 0)
 	if errors.Is(err, os.ErrNotExist) {
+		if marked {
+			return diskLedger{}, ErrJournalMissing
+		}
 		return diskLedger{Version: 1, Records: make(map[string]record)}, nil
 	}
 	if err != nil {
