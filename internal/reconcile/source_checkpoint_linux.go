@@ -45,8 +45,8 @@ func VerifySyntheticJournalCheckpoint(
 		var current [32]byte
 		copy(current[:], raw)
 		return checkpoint.Verify(proof, trust, checkpoint.Expected{
-			ScopeDigest: scopeDigest,
-			JournalDigest: current,
+			ScopeDigest:     scopeDigest,
+			JournalDigest:   current,
 			MinimumSequence: trustedMinimum,
 		})
 	})
