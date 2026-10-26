@@ -2,7 +2,10 @@
 
 package reconcile
 
-import "testing"
+import (
+	"testing"
+	"os"
+)
 
 func TestMarkerValidationPending(t *testing.T) {
 	if journalMarkerContents == "" {
