@@ -41,11 +41,11 @@ func TestSignedCheckpointBindsCurrentSyntheticJournal(t *testing.T) {
 		t.Fatal(err)
 	}
 	statement := checkpoint.Statement{
-		Version: checkpoint.Version,
-		Issuer: "external-source-fixture",
-		KeyID: "ephemeral-test-key",
-		ScopeDigest: scopeHash,
-		Sequence: 10,
+		Version:       checkpoint.Version,
+		Issuer:        "external-source-fixture",
+		KeyID:         "ephemeral-test-key",
+		ScopeDigest:   scopeHash,
+		Sequence:      10,
 		JournalDigest: sha256.Sum256(journal),
 	}
 	payload, err := checkpoint.SigningPayload(statement)
