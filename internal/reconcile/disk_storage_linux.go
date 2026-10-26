@@ -102,6 +102,10 @@ func readSourceLedger(path string) (diskLedger, error) {
 }
 
 func writeSourceLedger(path string, ledger diskLedger) error {
+	return writeSourceLedgerWithCheckpoint(path, ledger, nil)
+}
+
+func writeSourceLedgerWithCheckpoint(path string, ledger diskLedger, checkpoint func(string) error) error {
 	if err := ledger.validate(); err != nil {
 		return err
 	}
