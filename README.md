@@ -58,6 +58,7 @@ The planned server and apps must be genuinely native to each declared target ope
 - [Journal initialization marker and missing-history safeguards](docs/journal-presence-marker.md)
 - [Journal publication fail-closed guard and operator review](docs/journal-publication-guard.md)
 - [Local journal checksum witness and rollback limitations](docs/journal-checksum-witness.md)
+- [Required checksum witness after journal migration](docs/journal-witness-required.md)
 - [Ambiguous source acknowledgement recovery](docs/uncertain-source-acknowledgements.md)
 
 This **public** repository must not contain credentials, private keys, production data, private infrastructure details, or private incident information. Project planning documents are not a substitute for GoreeCloud's authoritative governance. Licensing and first supported platforms are to be decided before implementation.
@@ -121,3 +122,7 @@ The `fix/journal-publication-guard` development branch closes a lower-level writ
 ## Synthetic journal rollback witness
 
 The stacked `feat/source-journal-checksum-witness` branch stores an optional private SHA-256 witness of the local journal and refuses mismatched or invalid witness state during source operations. Regression tests include restoration of an older valid JSON journal, broken witness permissions, legacy migration, and interrupted two-file publication. This is **same-UID local consistency checking, not authenticated or tamper-proof rollback protection**. An absent witness is still accepted for legacy compatibility; there is no production recovery, real data or independent rights evidence. See [checksum witness](docs/journal-checksum-witness.md).
+
+## Required witness after successful synthetic journal publication
+
+The `fix/witness-missing-fail-closed` branch records witness-required status in a private v2 initialization marker only after a matching journal and checksum witness have been synchronized. Once upgraded, removing the witness blocks synthetic source execution, inspection and counting instead of reclassifying the journal as legacy. Existing v1 journals retain compatibility until their next successful write. This **does not** prevent a same-UID actor from replacing all local files or prove production rollback security. See [witness-required marker](docs/journal-witness-required.md).
