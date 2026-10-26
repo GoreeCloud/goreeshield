@@ -67,6 +67,10 @@ func ownedPrivateRegular(f *os.File) error {
 }
 
 func readSourceLedger(path string) (diskLedger, error) {
+	marked, markErr := journalMarked(path)
+	if markErr != nil {
+		return diskLedger{}, markErr
+	}
 	file, err := os.OpenFile(path, os.O_RDONLY|syscall.O_NOFOLLOW, 0)
 	if errors.Is(err, os.ErrNotExist) {
 		return diskLedger{Version: 1, Records: make(map[string]record)}, nil
