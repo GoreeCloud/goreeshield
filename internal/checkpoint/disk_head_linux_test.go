@@ -127,3 +127,16 @@ func TestDiskHeadRejectsCorruptAndReadableState(t *testing.T) {
 		t.Fatalf("corrupt head was replaced: %v", err)
 	}
 }
+
+func TestDiskHeadInterruptedFirstInitializationFailsClosed(t *testing.T) {
+	store := DiskHeadStore{Root: filepath.Join(t.TempDir(), "source-owned")}
+	if err := store.privateRoot(); err != nil {
+		t.Fatal(err)
+	}
+	if err := initializeHeadMarker(store.path(headScope())); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.Initialize(headStatement(1)); !errors.Is(err, ErrHeadCorrupt) {
+		t.Fatalf("unfinished bootstrap silently reset: %v", err)
+	}
+}
