@@ -119,4 +119,13 @@ func TestConcurrentUpdateIsSerialized(t *testing.T) {
 	if err := got.Validate(); err != nil {
 		t.Fatal(err)
 	}
+	// A valid final state alone does not prove serialization: concurrent
+	// read-modify-write operations could silently discard earlier decisions.
+	// Every successful local choice change must consume exactly one revision.
+	if got.Revision != 12 {
+		t.Fatalf("concurrent updates lost decisions: got revision %d, want 12", got.Revision)
+	}
+	if got.Choices["demo-local-metrics"].Revision != got.Revision {
+		t.Fatalf("latest purpose decision does not match state revision: %+v", got)
+	}
 }
