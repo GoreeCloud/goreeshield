@@ -17,11 +17,11 @@ func fixture(t *testing.T) (Proof, Trust, Expected, ed25519.PrivateKey) {
 	scope := sha256.Sum256([]byte("synthetic scope fixture"))
 	journal := sha256.Sum256([]byte("synthetic journal fixture"))
 	statement := Statement{
-		Version: Version,
-		Issuer: "goreecloud-fixture-source",
-		KeyID: "fixture-key-v1",
-		ScopeDigest: scope,
-		Sequence: 7,
+		Version:       Version,
+		Issuer:        "goreecloud-fixture-source",
+		KeyID:         "fixture-key-v1",
+		ScopeDigest:   scope,
+		Sequence:      7,
 		JournalDigest: journal,
 	}
 	payload, err := SigningPayload(statement)
