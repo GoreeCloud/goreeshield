@@ -55,7 +55,8 @@ func initializeJournalMarker(path string) error {
 			return err
 		}
 		if exists {
-			return nil
+			_, err := readSourceLedger(path)
+			return err
 		}
 		return ErrJournalMarker
 	}
