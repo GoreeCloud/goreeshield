@@ -92,3 +92,35 @@ func SigningPayload(s Statement) ([]byte, error) {
 	b.Write(s.JournalDigest[:])
 	return b.Bytes(), nil
 }
+
+// Verify accepts only a checkpoint signed by the separately provisioned
+// source public key for the expected scope and journal state. Sequence
+// freshness relies on MinimumSequence from an independent authoritative
+// source, not the signature alone.
+func Verify(proof Proof, trust Trust, expected Expected) error {
+	payload, err := SigningPayload(proof.Statement)
+	if err != nil {
+		return err
+	}
+	if !validIdentifier(trust.Issuer) || !validIdentifier(trust.KeyID) ||
+		len(trust.PublicKey) != ed25519.PublicKeySize ||
+		proof.Statement.Issuer != trust.Issuer || proof.Statement.KeyID != trust.KeyID {
+		return ErrUntrusted
+	}
+	if len(proof.Signature) != ed25519.SignatureSize ||
+		!ed25519.Verify(trust.PublicKey, payload, proof.Signature) {
+		return ErrSignature
+	}
+	if emptyDigest(expected.ScopeDigest) || emptyDigest(expected.JournalDigest) ||
+		subtle.ConstantTimeCompare(proof.Statement.ScopeDigest[:], expected.ScopeDigest[:]) != 1 ||
+		subtle.ConstantTimeCompare(proof.Statement.JournalDigest[:], expected.JournalDigest[:]) != 1 {
+		return ErrMismatch
+	}
+	if expected.MinimumSequence == 0 {
+		return ErrInvalid
+	}
+	if proof.Statement.Sequence < expected.MinimumSequence {
+		return ErrStale
+	}
+	return nil
+}
