@@ -102,6 +102,9 @@ func readSourceLedger(path string) (diskLedger, error) {
 	if err := ledger.validate(); err != nil {
 		return diskLedger{}, err
 	}
+	if err := verifyJournalWitness(path); err != nil {
+		return diskLedger{}, err
+	}
 	if ledger.Records == nil {
 		ledger.Records = make(map[string]record)
 	}
