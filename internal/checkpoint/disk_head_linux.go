@@ -88,3 +88,49 @@ func (s DiskHeadStore) withLock(scope [32]byte, fn func(string) error) error {
 	defer syscall.Flock(int(lock.Fd()), syscall.LOCK_UN)
 	return fn(path)
 }
+
+func readStoredHead(path string, scope [32]byte) (Statement, error) {
+	f, err := os.OpenFile(path, os.O_RDONLY|syscall.O_NOFOLLOW, 0)
+	if errors.Is(err, os.ErrNotExist) {
+		return Statement{}, ErrHeadAbsent
+	}
+	if err != nil {
+		return Statement{}, err
+	}
+	defer f.Close()
+	if err := privateHeadFile(f); err != nil {
+		return Statement{}, err
+	}
+	info, err := f.Stat()
+	if err != nil || info.Size() > maxHeadBytes {
+		return Statement{}, ErrHeadCorrupt
+	}
+	decoder := json.NewDecoder(io.LimitReader(f, maxHeadBytes+1))
+	decoder.DisallowUnknownFields()
+	var data storedHead
+	if err := decoder.Decode(&data); err != nil {
+		return Statement{}, ErrHeadCorrupt
+	}
+	var trailing any
+	if err := decoder.Decode(&trailing); !errors.Is(err, io.EOF) {
+		return Statement{}, ErrHeadCorrupt
+	}
+	if data.Version != 1 || data.Statement.ScopeDigest != scope {
+		return Statement{}, ErrHeadCorrupt
+	}
+	if _, err := SigningPayload(data.Statement); err != nil {
+		return Statement{}, ErrHeadCorrupt
+	}
+	return data.Statement, nil
+}
+
+// Read never invents a source-owned current head if state is absent.
+func (s DiskHeadStore) Read(scope [32]byte) (Statement, error) {
+	var statement Statement
+	err := s.withLock(scope, func(path string) error {
+		var readErr error
+		statement, readErr = readStoredHead(path, scope)
+		return readErr
+	})
+	return statement, err
+}
