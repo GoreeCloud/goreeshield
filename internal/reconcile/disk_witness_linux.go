@@ -98,3 +98,43 @@ func verifyJournalWitness(path string) error {
 	}
 	return nil
 }
+
+// Only publish a new witness after the journal rename and directory sync.
+// A failed witness publication leaves the caller's commit outcome uncertain.
+func writeJournalWitness(path string) error {
+	hash, err := hashCurrentJournal(path)
+	if err != nil {
+		return err
+	}
+	parent := filepath.Dir(path)
+	temp, err := os.CreateTemp(parent, ".witness-*.tmp")
+	if err != nil {
+		return err
+	}
+	name := temp.Name()
+	defer os.Remove(name)
+	if err := temp.Chmod(0600); err != nil {
+		temp.Close()
+		return err
+	}
+	if _, err := temp.WriteString(witnessPrefix + hash + "\n"); err != nil {
+		temp.Close()
+		return err
+	}
+	if err := temp.Sync(); err != nil {
+		temp.Close()
+		return err
+	}
+	if err := temp.Close(); err != nil {
+		return err
+	}
+	if err := os.Rename(name, journalWitnessPath(path)); err != nil {
+		return err
+	}
+	dir, err := os.Open(parent)
+	if err != nil {
+		return err
+	}
+	defer dir.Close()
+	return dir.Sync()
+}
