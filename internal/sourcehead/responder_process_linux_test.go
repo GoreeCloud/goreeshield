@@ -164,3 +164,30 @@ func TestDurableSignerAcrossSourceProcessRestart(t *testing.T) {
 		t.Fatalf("fixture current head rejected with freshly pinned test key: %v", err)
 	}
 }
+
+// Test-only credential fixture. This is intentionally not linked into any
+// production source package or accepted as a production key manager.
+func readTestOnlySigner(path string) (ed25519.PrivateKey, error) {
+	file, err := os.OpenFile(path, os.O_RDONLY|syscall.O_NOFOLLOW, 0)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+	info, err := file.Stat()
+	if err != nil {
+		return nil, err
+	}
+	stat, ok := info.Sys().(*syscall.Stat_t)
+	if !info.Mode().IsRegular() || info.Mode().Perm() != 0600 || !ok ||
+		stat.Uid != uint32(os.Geteuid()) || stat.Nlink != 1 ||
+		info.Size() != ed25519.SeedSize {
+		return nil, fmt.Errorf("test-only signer file is not owned, private and regular")
+	}
+	seed := make([]byte, ed25519.SeedSize)
+	if _, err := file.Read(seed); err != nil {
+		return nil, err
+	}
+	private := ed25519.NewKeyFromSeed(seed)
+	clear(seed)
+	return private, nil
+}
