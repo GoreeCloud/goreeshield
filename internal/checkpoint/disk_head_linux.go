@@ -238,3 +238,57 @@ func publishHead(path string, statement Statement) error {
 	}
 	return nil
 }
+
+// Initialize is a distinct first-use operation. It cannot run a second time
+// after the marker has been written, even if the head file was lost.
+func (s DiskHeadStore) Initialize(first Statement) error {
+	if _, err := SigningPayload(first); err != nil {
+		return err
+	}
+	if first.Sequence != 1 {
+		return ErrHeadGap
+	}
+	return s.withLock(first.ScopeDigest, func(path string) error {
+		_, err := readStoredHead(path, first.ScopeDigest)
+		if err == nil {
+			return ErrHeadConflict
+		}
+		if !errors.Is(err, ErrHeadAbsent) {
+			return err
+		}
+		if err := initializeHeadMarker(path); err != nil {
+			return err
+		}
+		return publishHead(path, first)
+	})
+}
+
+// Advance requires an already initialized head and a strictly consecutive
+// sequence. An exact replay of the current statement is idempotent.
+func (s DiskHeadStore) Advance(next Statement) error {
+	if _, err := SigningPayload(next); err != nil {
+		return err
+	}
+	return s.withLock(next.ScopeDigest, func(path string) error {
+		current, err := readStoredHead(path, next.ScopeDigest)
+		if err != nil {
+			return err
+		}
+		if current.Issuer != next.Issuer || current.KeyID != next.KeyID {
+			return ErrUntrusted
+		}
+		if next.Sequence < current.Sequence {
+			return ErrHeadRegression
+		}
+		if next.Sequence == current.Sequence {
+			if next == current {
+				return nil
+			}
+			return ErrHeadConflict
+		}
+		if next.Sequence-current.Sequence != 1 {
+			return ErrHeadGap
+		}
+		return publishHead(path, next)
+	})
+}
