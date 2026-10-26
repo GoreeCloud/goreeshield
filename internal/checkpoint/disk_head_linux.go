@@ -197,3 +197,44 @@ func initializeHeadMarker(path string) error {
 	defer directory.Close()
 	return directory.Sync()
 }
+
+func publishHead(path string, statement Statement) error {
+	temp, err := os.CreateTemp(filepath.Dir(path), ".source-head-*.tmp")
+	if err != nil {
+		return err
+	}
+	name := temp.Name()
+	defer os.Remove(name)
+	if err := temp.Chmod(0600); err != nil {
+		temp.Close()
+		return err
+	}
+	if err := json.NewEncoder(temp).Encode(storedHead{Version: 1, Statement: statement}); err != nil {
+		temp.Close()
+		return err
+	}
+	info, err := temp.Stat()
+	if err != nil || info.Size() > maxHeadBytes {
+		temp.Close()
+		return ErrHeadCorrupt
+	}
+	if err := temp.Sync(); err != nil {
+		temp.Close()
+		return err
+	}
+	if err := temp.Close(); err != nil {
+		return err
+	}
+	if err := os.Rename(name, path); err != nil {
+		return err
+	}
+	dir, err := os.Open(filepath.Dir(path))
+	if err != nil {
+		return ErrHeadCommitUncertain
+	}
+	defer dir.Close()
+	if err := dir.Sync(); err != nil {
+		return ErrHeadCommitUncertain
+	}
+	return nil
+}
