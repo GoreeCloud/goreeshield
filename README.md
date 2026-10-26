@@ -59,6 +59,7 @@ The planned server and apps must be genuinely native to each declared target ope
 - [Journal publication fail-closed guard and operator review](docs/journal-publication-guard.md)
 - [Local journal checksum witness and rollback limitations](docs/journal-checksum-witness.md)
 - [Required checksum witness after journal migration](docs/journal-witness-required.md)
+- [Source-owned signed checkpoint verifier v1](docs/source-checkpoint-verifier.md)
 - [Ambiguous source acknowledgement recovery](docs/uncertain-source-acknowledgements.md)
 
 This **public** repository must not contain credentials, private keys, production data, private infrastructure details, or private incident information. Project planning documents are not a substitute for GoreeCloud's authoritative governance. Licensing and first supported platforms are to be decided before implementation.
@@ -126,3 +127,7 @@ The stacked `feat/source-journal-checksum-witness` branch stores an optional pri
 ## Required witness after successful synthetic journal publication
 
 The `fix/witness-missing-fail-closed` branch records witness-required status in a private v2 initialization marker only after a matching journal and checksum witness have been synchronized. Once upgraded, removing the witness blocks synthetic source execution, inspection and counting instead of reclassifying the journal as legacy. Existing v1 journals retain compatibility until their next successful write. This **does not** prevent a same-UID actor from replacing all local files or prove production rollback security. See [witness-required marker](docs/journal-witness-required.md).
+
+## Source-owned checkpoint verification experiment
+
+The stacked `feat/source-owned-checkpoint-verifier` branch defines a verification-only Ed25519 checkpoint contract for a future source-owning GoreeCloud application. It binds the issuer, key ID, synthetic tenant/subject scope, current journal digest and an externally trusted minimum sequence, and tests signed-state verification against the local Linux journal. **No private key, production trust store, real source integration or authenticated current source head exists in GoreeShield.** A signature without externally trusted freshness does not establish rollback resistance. See [source checkpoint verification](docs/source-checkpoint-verifier.md).
