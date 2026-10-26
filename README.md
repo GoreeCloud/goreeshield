@@ -62,6 +62,7 @@ The planned server and apps must be genuinely native to each declared target ope
 - [Source-owned signed checkpoint verifier v1](docs/source-checkpoint-verifier.md)
 - [Challenged source-head verification contract](docs/source-head-challenge.md)
 - [Linux source-head process-boundary experiment](docs/linux-source-head-process-boundary.md)
+- [Durable source-owned head index](docs/durable-source-head-index.md)
 - [Ambiguous source acknowledgement recovery](docs/uncertain-source-acknowledgements.md)
 
 This **public** repository must not contain credentials, private keys, production data, private infrastructure details, or private incident information. Project planning documents are not a substitute for GoreeCloud's authoritative governance. Licensing and first supported platforms are to be decided before implementation.
