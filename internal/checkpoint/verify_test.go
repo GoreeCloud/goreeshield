@@ -94,3 +94,35 @@ func TestWrongSignerAndModifiedStatementRejected(t *testing.T) {
 		t.Fatalf("wrong trusted key ID accepted: %v", err)
 	}
 }
+
+func TestInvalidShapesAndMissingIndependentHead(t *testing.T) {
+	proof, trust, expected, _ := fixture(t)
+	expected.MinimumSequence = 0
+	if err := Verify(proof, trust, expected); !errors.Is(err, ErrInvalid) {
+		t.Fatalf("missing trusted sequence minimum accepted: %v", err)
+	}
+	proof, trust, expected, _ = fixture(t)
+	proof.Signature = proof.Signature[:8]
+	if err := Verify(proof, trust, expected); !errors.Is(err, ErrSignature) {
+		t.Fatalf("truncated signature accepted: %v", err)
+	}
+	proof, trust, expected, _ = fixture(t)
+	trust.PublicKey = trust.PublicKey[:8]
+	if err := Verify(proof, trust, expected); !errors.Is(err, ErrUntrusted) {
+		t.Fatalf("truncated public key accepted: %v", err)
+	}
+	for _, change := range []func(*Statement){
+		func(s *Statement) { s.Version = 2 },
+		func(s *Statement) { s.Sequence = 0 },
+		func(s *Statement) { s.KeyID = "unsafe:key" },
+		func(s *Statement) { s.Issuer = "" },
+		func(s *Statement) { s.ScopeDigest = [32]byte{} },
+		func(s *Statement) { s.JournalDigest = [32]byte{} },
+	} {
+		proof, trust, expected, _ = fixture(t)
+		change(&proof.Statement)
+		if err := Verify(proof, trust, expected); !errors.Is(err, ErrInvalid) {
+			t.Fatalf("malformed checkpoint statement accepted: %v", err)
+		}
+	}
+}
