@@ -53,6 +53,8 @@ The planned server and apps must be genuinely native to each declared target ope
 - [Persistent synthetic source journal](docs/durable-source.md)
 - [Linux cross-process journal and integrity verification](docs/journal-process-verification.md)
 - [Journal crash-recovery assessment and staged-file tests](docs/journal-crash-recovery-assessment.md)
+- [Deterministic journal commit checkpoints](docs/journal-commit-checkpoints.md)
+- [Ambiguous source acknowledgement recovery](docs/uncertain-source-acknowledgements.md)
 
 This **public** repository must not contain credentials, private keys, production data, private infrastructure details, or private incident information. Project planning documents are not a substitute for GoreeCloud's authoritative governance. Licensing and first supported platforms are to be decided before implementation.
 
@@ -95,3 +97,7 @@ The `feat/durable-journal-process-tests` branch expands the local synthetic sour
 ## Journal interruption assessment
 
 The stacked `feat/journal-crash-recovery` branch adds local tests ensuring that orphaned journal staging files cannot override a committed synthetic observation and are **not** automatically promoted to repair a corrupted authoritative journal. Controlled process termination at the journal writer's `fsync`/rename checkpoints has **not** been verified. See the [crash-recovery assessment](docs/journal-crash-recovery-assessment.md). No real source product or production data is involved.
+
+## Local journal write checkpoints
+
+The `feat/journal-write-fault-invariants` branch distinguishes the **pre-rename failure** path from an **uncertain post-rename source commit**, returning a typed `ErrCommitUncertain` for failures while reopening or syncing the journal's parent directory. An internal checkpoint callback supports deterministic development tests without changing normal calls. Tests exercise journal visibility, temporary-file cleanup, exact source readback and duplicate replay. **These tests do not simulate process termination, power loss or real external effects.** See [journal commit checkpoints](docs/journal-commit-checkpoints.md).
