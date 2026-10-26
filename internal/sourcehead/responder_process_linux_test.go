@@ -105,3 +105,45 @@ func launchDurableSourceChild(t *testing.T, ctx context.Context, root, socket st
 	}
 	return cmd, boot
 }
+
+func TestDurableSignerAcrossSourceProcessRestart(t *testing.T) {
+	root := filepath.Join(t.TempDir(), "owning-source")
+	socket := filepath.Join(t.TempDir(), "source.sock")
+	store := checkpoint.DiskHeadStore{Root: root}
+	first := testStatement(1)
+	if err := store.Initialize(first); err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	child, firstBoot := launchDurableSourceChild(t, ctx, root, socket)
+	provider := checkpoint.UnixHeadProvider{SocketPath: socket, ExpectedUID: uint32(os.Geteuid())}
+	oldTrust := checkpoint.Trust{Issuer: first.Issuer, KeyID: first.KeyID, PublicKey: firstBoot.PublicKey}
+	if err := checkpoint.VerifyWithFreshHead(ctx, provider, firstBoot.Proof, oldTrust, first.ScopeDigest, first.JournalDigest); err != nil {
+		t.Fatalf("first independently signed source head rejected: %v", err)
+	}
+	if err := store.Advance(testStatement(2)); err != nil {
+		t.Fatal(err)
+	}
+	if err := checkpoint.VerifyWithFreshHead(ctx, provider, firstBoot.Proof, oldTrust, first.ScopeDigest, first.JournalDigest); !errors.Is(err, checkpoint.ErrHeadStale) {
+		t.Fatalf("old checkpoint accepted after durable advance: %v", err)
+	}
+	if err := child.Process.Kill(); err != nil {
+		t.Fatal(err)
+	}
+	_ = child.Wait()
+	if err := os.Remove(socket); err != nil && !errors.Is(err, os.ErrNotExist) {
+		t.Fatal(err)
+	}
+	_, newBoot := launchDurableSourceChild(t, ctx, root, socket)
+	if newBoot.Proof.Statement.Sequence != 2 {
+		t.Fatalf("head did not survive source process restart: %d", newBoot.Proof.Statement.Sequence)
+	}
+	if err := checkpoint.VerifyWithFreshHead(ctx, provider, firstBoot.Proof, oldTrust, first.ScopeDigest, first.JournalDigest); !errors.Is(err, checkpoint.ErrSignature) {
+		t.Fatalf("new signer was silently trusted under old pinned key: %v", err)
+	}
+	newTrust := checkpoint.Trust{Issuer: first.Issuer, KeyID: first.KeyID, PublicKey: newBoot.PublicKey}
+	if err := checkpoint.VerifyWithFreshHead(ctx, provider, newBoot.Proof, newTrust, first.ScopeDigest, first.JournalDigest); err != nil {
+		t.Fatalf("fixture current head rejected with freshly pinned test key: %v", err)
+	}
+}
