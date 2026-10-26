@@ -54,3 +54,27 @@ func TestDiskHeadPersistsAndEnforcesSequence(t *testing.T) {
 		t.Fatalf("sequence gap accepted: %v", err)
 	}
 }
+
+func TestDiskHeadRefusesConflictingRevisionAndOwner(t *testing.T) {
+	store := DiskHeadStore{Root: filepath.Join(t.TempDir(), "source-owned")}
+	if err := store.Initialize(headStatement(1)); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.Advance(headStatement(2)); err != nil {
+		t.Fatal(err)
+	}
+	conflict := headStatement(2)
+	conflict.JournalDigest = sha256.Sum256([]byte("changed bytes"))
+	if err := store.Advance(conflict); !errors.Is(err, ErrHeadConflict) {
+		t.Fatalf("same sequence conflict accepted: %v", err)
+	}
+	wrongOwner := headStatement(3)
+	wrongOwner.Issuer = "other-source"
+	if err := store.Advance(wrongOwner); !errors.Is(err, ErrUntrusted) {
+		t.Fatalf("source substitution accepted: %v", err)
+	}
+	last, err := store.Read(headScope())
+	if err != nil || last != headStatement(2) {
+		t.Fatalf("rejected change modified head: %+v %v", last, err)
+	}
+}
