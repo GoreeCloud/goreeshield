@@ -46,3 +46,31 @@ func TestWitnessDetectsOlderValidJournalCopy(t *testing.T) {
 		t.Fatalf("rollback permitted synthetic replay: %v", err)
 	}
 }
+
+func TestJournalWitnessCorruptionAndPermissionsFailClosed(t *testing.T) {
+	d := scoped.Directory{Root: filepath.Join(t.TempDir(), "scopes")}
+	source := &DiskSource{Directory: d}
+	if err := source.Apply(context.Background(), "tenant-one", "subject-one", fixtureRequest("op-witness-one", 1)); err != nil {
+		t.Fatal(err)
+	}
+	store, err := d.Store("tenant-one", "subject-one")
+	if err != nil {
+		t.Fatal(err)
+	}
+	path := journalWitnessPath(sourceLedgerPath(store.Path))
+	if err := os.Chmod(path, 0644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := source.Count("tenant-one", "subject-one"); !errors.Is(err, ErrJournalWitness) {
+		t.Fatalf("world-readable witness was accepted: %v", err)
+	}
+	if err := os.Chmod(path, 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, []byte("bad witness"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := source.Count("tenant-one", "subject-one"); !errors.Is(err, ErrJournalWitness) {
+		t.Fatalf("corrupt checksum witness was accepted: %v", err)
+	}
+}
