@@ -62,3 +62,34 @@ func TestResponderReadsLatestDurableHead(t *testing.T) {
 		t.Fatalf("head not recovered after reopen: %+v %v", out, err)
 	}
 }
+
+func TestResponderFailsClosedOnUntrustedOrMissingState(t *testing.T) {
+	store := checkpoint.DiskHeadStore{Root: filepath.Join(t.TempDir(), "heads")}
+	first := testStatement(1)
+	request := checkpoint.HeadRequest{ScopeDigest: first.ScopeDigest, Nonce: sha256.Sum256([]byte("nonce"))}
+	_, private, err := ed25519.GenerateKey(rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	responder := Responder{Store: store, Signer: private, Issuer: first.Issuer, KeyID: first.KeyID}
+	if _, err := responder.Respond(context.Background(), request); !errors.Is(err, checkpoint.ErrHeadAbsent) {
+		t.Fatalf("missing source head accepted: %v", err)
+	}
+	if err := store.Initialize(first); err != nil {
+		t.Fatal(err)
+	}
+	responder.Signer = nil
+	if _, err := responder.Respond(context.Background(), request); !errors.Is(err, ErrSignerUnavailable) {
+		t.Fatalf("missing signer accepted: %v", err)
+	}
+	responder.Signer = private
+	responder.KeyID = "wrong-key"
+	if _, err := responder.Respond(context.Background(), request); !errors.Is(err, ErrSourceIdentity) {
+		t.Fatalf("wrong signing identity accepted: %v", err)
+	}
+	responder.KeyID = first.KeyID
+	request.Nonce = [32]byte{}
+	if _, err := responder.Respond(context.Background(), request); !errors.Is(err, checkpoint.ErrInvalid) {
+		t.Fatalf("empty nonce accepted: %v", err)
+	}
+}
