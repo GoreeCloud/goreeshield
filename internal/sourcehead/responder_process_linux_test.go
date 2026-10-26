@@ -7,6 +7,9 @@ import (
 	"context"
 	"crypto/ed25519"
 	"crypto/rand"
+	"encoding/hex"
+	"fmt"
+	"syscall"
 	"encoding/json"
 	"errors"
 	"net"
@@ -44,7 +47,21 @@ func TestDurableSourceHeadChild(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	responder := Responder{Store: store, Signer: private, Issuer: statement.Issuer, KeyID: statement.KeyID, PinnedPublicKey: public}
+	if keyFile := os.Getenv("GS_OWNING_HEAD_TEST_KEY"); keyFile != "" {
+		private, err = readTestOnlySigner(keyFile)
+		if err != nil {
+			t.Fatal(err)
+		}
+		public = private.Public().(ed25519.PublicKey)
+	}
+	pinned := public
+	if pinHex := os.Getenv("GS_OWNING_HEAD_TEST_PIN"); pinHex != "" {
+		pinned, err = hex.DecodeString(pinHex)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	responder := Responder{Store: store, Signer: private, Issuer: statement.Issuer, KeyID: statement.KeyID, PinnedPublicKey: pinned}
 	socket, err := net.Listen("unix", os.Getenv("GS_OWNING_HEAD_SOCKET"))
 	if err != nil {
 		t.Fatal(err)
