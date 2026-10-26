@@ -97,4 +97,4 @@ func TestDiskSourceRejectsSymlinkedLock(t *testing.T) {
 	if err != nil || string(original) != "do not modify" {
 		t.Fatalf("symlink target unexpectedly modified: %q %v", original, err)
 	}
-	}
+}
