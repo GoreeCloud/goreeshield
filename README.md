@@ -50,6 +50,7 @@ The planned server and apps must be genuinely native to each declared target ope
 - [Legacy consent migration and Identity trust boundary](docs/identity-boundary.md)
 - [Synthetic tenant/subject-scoped consent isolation](docs/scoped-consent.md)
 - [Source-owned synthetic outcome reconciliation](docs/source-reconciliation.md)
+- [Persistent synthetic source journal](docs/durable-source.md)
 
 This **public** repository must not contain credentials, private keys, production data, private infrastructure details, or private incident information. Project planning documents are not a substitute for GoreeCloud's authoritative governance. Licensing and first supported platforms are to be decided before implementation.
 
@@ -80,3 +81,7 @@ The optional `feat/scoped-choice-isolation-20261025` branch models separately st
 ## Source observation and reconciliation experiment
 
 The `feat/source-receipts` development branch adds a local, in-memory **mock source** and a separate coordinator. A submitted synthetic operation stays `pending_source_readback`; a separately authorized inspection must read the source's exact record before reporting a synthetic observation. Missing and conflicting outcomes remain unresolved or explicitly conflicted. No real source product is connected, no personal data is processed, and the in-memory observations are **not** durable receipts or verified privacy rights fulfillment. See [source reconciliation contract](docs/source-reconciliation.md).
+
+## Local durable source experiment
+
+The `feat/durable-source-journal` branch adds a strictly local `DiskSource` fixture. A synthetic counter and operation ID are saved together using a private Linux JSON journal, advisory file locking, atomic rename and source readback. Test objects can reopen the state and reject repeated IDs, invalid records and unsafe file permissions. This does **not** make real external processing exactly-once, does not provide tamper-proof receipts or source-independent verification, and has no live GoreeCloud Identity integration or production data. See [persistent source journal scope](docs/durable-source.md).
