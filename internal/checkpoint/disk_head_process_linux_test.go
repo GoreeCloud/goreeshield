@@ -3,6 +3,7 @@
 package checkpoint
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"os"
@@ -41,9 +42,13 @@ func TestDiskHeadConcurrentLinuxProcesses(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 	children := make([]*exec.Cmd, 2)
+	outputs := make([]*bytes.Buffer, len(children))
 	for i := range children {
 		cmd := exec.CommandContext(ctx, os.Args[0], "-test.run=^TestHeadStoreSubprocessWorker$")
 		cmd.Env = append(os.Environ(), "GS_SOURCE_HEAD_CHILD=1", "GS_SOURCE_HEAD_ROOT="+root)
+		outputs[i] = new(bytes.Buffer)
+		cmd.Stdout = outputs[i]
+		cmd.Stderr = outputs[i]
 		children[i] = cmd
 	}
 	for _, cmd := range children {
@@ -51,9 +56,10 @@ func TestDiskHeadConcurrentLinuxProcesses(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	for _, cmd := range children {
-		output, err := cmd.CombinedOutput()
-		if err != nil || !strings.Contains(string(output), "HEADSEQ=3") {
+	for i, cmd := range children {
+		err := cmd.Wait()
+		output := outputs[i].String()
+		if err != nil || !strings.Contains(output, "HEADSEQ=3") {
 			t.Fatalf("independent source-head worker failed: %v %q", err, output)
 		}
 	}
