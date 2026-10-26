@@ -78,3 +78,25 @@ func TestLegacyWitnessMigrationBecomesMandatory(t *testing.T) {
 		t.Fatalf("promoted scope accepted missing witness: %v", err)
 	}
 }
+
+func TestDirectWriterCannotBypassRequiredWitness(t *testing.T) {
+	dir := scoped.Directory{Root: filepath.Join(t.TempDir(), "scopes")}
+	store, err := dir.Store("tenant-one", "subject-one")
+	if err != nil {
+		t.Fatal(err)
+	}
+	path := sourceLedgerPath(store.Path)
+	journal := diskLedger{Version: 1, Records: map[string]record{}}
+	if err := writeSourceLedger(path, journal); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Remove(journalWitnessPath(path)); err != nil {
+		t.Fatal(err)
+	}
+	if err := writeSourceLedger(path, journal); !errors.Is(err, ErrWitnessMissing) {
+		t.Fatalf("direct writer bypassed mandatory witness check: %v", err)
+	}
+	if _, err := os.Stat(journalWitnessPath(path)); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("direct writer silently recreated witness: %v", err)
+	}
+}
