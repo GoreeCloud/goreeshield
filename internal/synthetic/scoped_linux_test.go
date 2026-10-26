@@ -26,7 +26,7 @@ func TestScopedSyntheticProcessingAndWithdrawal(t *testing.T) {
 	}
 	guardFor := func(tenant, subject string) authz.Guard {
 		return authz.Guard{
-			Verifier: fixtureIdentity{claims: makeClaims(tenant, subject)},
+			Verifier:       fixtureIdentity{claims: makeClaims(tenant, subject)},
 			ExpectedIssuer: "synthetic-issuer", ExpectedAudience: "goreeshield-fixture",
 			Now: func() time.Time { return now },
 		}
