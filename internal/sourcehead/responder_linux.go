@@ -72,3 +72,9 @@ func (r Responder) Respond(ctx context.Context, request checkpoint.HeadRequest) 
 	head.Signature = signature
 	return head, nil
 }
+
+// CurrentHead implements checkpoint.HeadProvider for local source-owned
+// fixtures. A real service must separately enforce caller authorization.
+func (r Responder) CurrentHead(ctx context.Context, request checkpoint.HeadRequest) (checkpoint.HeadProof, error) {
+	return r.Respond(ctx, request)
+}
