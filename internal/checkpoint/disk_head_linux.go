@@ -90,9 +90,20 @@ func (s DiskHeadStore) withLock(scope [32]byte, fn func(string) error) error {
 }
 
 func readStoredHead(path string, scope [32]byte) (Statement, error) {
+	initialized, err := validateHeadMarker(path)
+	if err != nil {
+		return Statement{}, err
+	}
 	f, err := os.OpenFile(path, os.O_RDONLY|syscall.O_NOFOLLOW, 0)
 	if errors.Is(err, os.ErrNotExist) {
+		if initialized {
+			return Statement{}, ErrHeadCorrupt
+		}
 		return Statement{}, ErrHeadAbsent
+	}
+	if !initialized && err == nil {
+		f.Close()
+		return Statement{}, ErrHeadCorrupt
 	}
 	if err != nil {
 		return Statement{}, err
