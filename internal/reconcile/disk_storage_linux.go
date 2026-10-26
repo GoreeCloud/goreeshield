@@ -172,6 +172,9 @@ func writeSourceLedgerWithCheckpoint(path string, ledger diskLedger, checkpoint 
 	if err := writeJournalWitness(path); err != nil {
 		return fmt.Errorf("%w: checksum witness publication: %v", ErrCommitUncertain, err)
 	}
+	if err := requireJournalWitness(path); err != nil {
+		return fmt.Errorf("%w: witness-required marker publication: %v", ErrCommitUncertain, err)
+	}
 	return nil
 }
 
