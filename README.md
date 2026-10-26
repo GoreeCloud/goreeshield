@@ -60,6 +60,7 @@ The planned server and apps must be genuinely native to each declared target ope
 - [Local journal checksum witness and rollback limitations](docs/journal-checksum-witness.md)
 - [Required checksum witness after journal migration](docs/journal-witness-required.md)
 - [Source-owned signed checkpoint verifier v1](docs/source-checkpoint-verifier.md)
+- [Challenged source-head verification contract](docs/source-head-challenge.md)
 - [Ambiguous source acknowledgement recovery](docs/uncertain-source-acknowledgements.md)
 
 This **public** repository must not contain credentials, private keys, production data, private infrastructure details, or private incident information. Project planning documents are not a substitute for GoreeCloud's authoritative governance. Licensing and first supported platforms are to be decided before implementation.
@@ -131,3 +132,7 @@ The `fix/witness-missing-fail-closed` branch records witness-required status in 
 ## Source-owned checkpoint verification experiment
 
 The stacked `feat/source-owned-checkpoint-verifier` branch defines a verification-only Ed25519 checkpoint contract for a future source-owning GoreeCloud application. It binds the issuer, key ID, synthetic tenant/subject scope, current journal digest and an externally trusted minimum sequence, and tests signed-state verification against the local Linux journal. **No private key, production trust store, real source integration or authenticated current source head exists in GoreeShield.** A signature without externally trusted freshness does not establish rollback resistance. See [source checkpoint verification](docs/source-checkpoint-verifier.md).
+
+## Challenged synthetic source head
+
+The `feat/challenged-source-head-verification` branch defines a verification-only, nonce-bound Ed25519 source-head interface. It rejects reused challenges, stale signed checkpoints, mismatched scope/journal data, untrusted keys and missing providers. A Linux fixture checks the local journal before and after invoking the source callback without holding its file lock during the call. **There is no connected independently operated source service, production signer, Identity authorization, or verified privacy outcome.** See [challenged source head](docs/source-head-challenge.md).
