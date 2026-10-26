@@ -57,6 +57,7 @@ The planned server and apps must be genuinely native to each declared target ope
 - [Linux test subprocess interruption](docs/journal-process-interruption.md)
 - [Journal initialization marker and missing-history safeguards](docs/journal-presence-marker.md)
 - [Journal publication fail-closed guard and operator review](docs/journal-publication-guard.md)
+- [Local journal checksum witness and rollback limitations](docs/journal-checksum-witness.md)
 - [Ambiguous source acknowledgement recovery](docs/uncertain-source-acknowledgements.md)
 
 This **public** repository must not contain credentials, private keys, production data, private infrastructure details, or private incident information. Project planning documents are not a substitute for GoreeCloud's authoritative governance. Licensing and first supported platforms are to be decided before implementation.
@@ -116,3 +117,7 @@ The `feat/journal-presence-marker` development branch stores a private initializ
 ## Direct journal publication safety
 
 The `fix/journal-publication-guard` development branch closes a lower-level writer gap: once a synthetic journal is marked as initialized, direct writes first verify the existing authoritative history, refusing missing or corrupt state instead of silently replacing it. Development tests cover deletion, corruption, and interrupted first publication. Recovery requires operator-reviewed evidence; the prototype provides **no automatic repair or production-safe rollback detection**. See [journal publication guard](docs/journal-publication-guard.md).
+
+## Synthetic journal rollback witness
+
+The stacked `feat/source-journal-checksum-witness` branch stores an optional private SHA-256 witness of the local journal and refuses mismatched or invalid witness state during source operations. Regression tests include restoration of an older valid JSON journal, broken witness permissions, legacy migration, and interrupted two-file publication. This is **same-UID local consistency checking, not authenticated or tamper-proof rollback protection**. An absent witness is still accepted for legacy compatibility; there is no production recovery, real data or independent rights evidence. See [checksum witness](docs/journal-checksum-witness.md).
