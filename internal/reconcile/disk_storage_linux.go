@@ -56,8 +56,8 @@ func ownedPrivateRegular(f *os.File) error {
 	}
 	stat, ok := info.Sys().(*syscall.Stat_t)
 	if !info.Mode().IsRegular() || info.Mode().Perm()&0077 != 0 ||
-		!ok || stat.Uid != uint32(os.Geteuid()) {
-		return errors.New("synthetic journal file is not an owned private regular file")
+		!ok || stat.Uid != uint32(os.Geteuid()) || stat.Nlink != 1 {
+		return errors.New("synthetic journal file must be owned, private, regular, and have one hard link")
 	}
 	return nil
 }
