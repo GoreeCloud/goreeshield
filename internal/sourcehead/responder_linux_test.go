@@ -17,8 +17,8 @@ import (
 func testStatement(sequence uint64) checkpoint.Statement {
 	return checkpoint.Statement{
 		Version: checkpoint.Version, Issuer: "owning-fixture", KeyID: "key-v1",
-		ScopeDigest: sha256.Sum256([]byte("synthetic-scope")),
-		Sequence: sequence,
+		ScopeDigest:   sha256.Sum256([]byte("synthetic-scope")),
+		Sequence:      sequence,
 		JournalDigest: sha256.Sum256([]byte("synthetic-journal")),
 	}
 }
