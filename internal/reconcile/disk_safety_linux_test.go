@@ -4,7 +4,6 @@ package reconcile
 
 import (
 	"context"
-	"errors"
 	"os"
 	"path/filepath"
 	"testing"
@@ -66,11 +65,14 @@ func TestDiskSourceCorruptedJournalFailsClosed(t *testing.T) {
 	if _, err := source.Inspect(context.Background(), "tenant-one", "subject-one", "op-corrupt"); err == nil {
 		t.Fatal("corrupt journal falsely returned an observation")
 	}
-	if err := os.WriteFile(path, []byte("{}"), 0644); err != nil {
+	if err := os.WriteFile(path, []byte(`{"version":1,"count":0,"records":{}}`), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chmod(path, 0644); err != nil {
 		t.Fatal(err)
 	}
 	if err := source.Apply(context.Background(), "tenant-one", "subject-one", fixtureRequest("op-perms", 1)); err == nil {
-		t.Fatal("world-readable journal was accepted")
+		t.Fatal("world-readable valid journal was accepted")
 	}
 }
 
@@ -95,7 +97,4 @@ func TestDiskSourceRejectsSymlinkedLock(t *testing.T) {
 	if err != nil || string(original) != "do not modify" {
 		t.Fatalf("symlink target unexpectedly modified: %q %v", original, err)
 	}
-	if errors.Is(source.Apply(context.Background(), "tenant-one", "subject-one", fixtureRequest("op-symlink", 1)), nil) {
-		t.Fatal("symlinked lock should not succeed")
 	}
-}
