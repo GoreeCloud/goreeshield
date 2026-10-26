@@ -21,12 +21,12 @@ import (
 
 type durableBoot struct {
 	PublicKey ed25519.PublicKey `json:"public_key"`
-	Proof checkpoint.Proof `json:"proof"`
+	Proof     checkpoint.Proof  `json:"proof"`
 }
 type durableWireRequest struct {
-	Operation string `json:"operation"`
-	Scope [32]byte `json:"scope"`
-	Nonce [32]byte `json:"nonce"`
+	Operation string   `json:"operation"`
+	Scope     [32]byte `json:"scope"`
+	Nonce     [32]byte `json:"nonce"`
 }
 
 // The fixture keeps an ephemeral private key in the child process only.
@@ -62,7 +62,7 @@ func TestDurableSourceHeadChild(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		_ = conn.SetDeadline(time.Now().Add(2*time.Second))
+		_ = conn.SetDeadline(time.Now().Add(2 * time.Second))
 		var request durableWireRequest
 		if err := json.NewDecoder(conn).Decode(&request); err == nil && request.Operation == "head" {
 			head, replyErr := responder.Respond(context.Background(), checkpoint.HeadRequest{
