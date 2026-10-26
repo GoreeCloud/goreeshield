@@ -102,6 +102,9 @@ func readSourceLedger(path string) (diskLedger, error) {
 	if err := ledger.validate(); err != nil {
 		return diskLedger{}, err
 	}
+	if err := verifyJournalWitness(path); err != nil {
+		return diskLedger{}, err
+	}
 	if ledger.Records == nil {
 		ledger.Records = make(map[string]record)
 	}
@@ -165,6 +168,9 @@ func writeSourceLedgerWithCheckpoint(path string, ledger diskLedger, checkpoint 
 	defer dir.Close()
 	if err := dir.Sync(); err != nil {
 		return fmt.Errorf("%w: parent directory sync failed: %v", ErrCommitUncertain, err)
+	}
+	if err := writeJournalWitness(path); err != nil {
+		return fmt.Errorf("%w: checksum witness publication: %v", ErrCommitUncertain, err)
 	}
 	return nil
 }

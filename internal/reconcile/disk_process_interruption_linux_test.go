@@ -103,18 +103,23 @@ func TestJournalWriterKilledAtCheckpoints(t *testing.T) {
 			}
 
 			recovered, err := readSourceLedger(path)
-			if err != nil {
-				t.Fatalf("fresh reader rejected journal: %v", err)
-			}
 			req := fixtureRequest("op-process-interruption", 1)
-			if stage == "before_rename" {
-				if recovered.Count != 0 || len(recovered.Records) != 0 {
-					t.Fatalf("unpublished operation replaced journal: %+v", recovered)
-				}
-			} else if recovered.Count != 1 || recovered.Records[req.OperationID].Request != req {
-				t.Fatalf("renamed operation not visible for readback: %+v", recovered)
-			}
 			source := &DiskSource{Directory: dir}
+			if stage == "after_rename" {
+				if !errors.Is(err, ErrJournalRollback) {
+					t.Fatalf("unconfirmed journal/witness mismatch should fail closed: %v", err)
+				}
+				if err := source.Apply(context.Background(), "tenant-one", "subject-one", req); !errors.Is(err, ErrJournalRollback) {
+					t.Fatalf("uncertain commit was automatically retried: %v", err)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("previous journal unreadable before rename: %v", err)
+			}
+			if recovered.Count != 0 || len(recovered.Records) != 0 {
+				t.Fatalf("unpublished operation replaced prior journal: %+v", recovered)
+			}
 			if err := source.Apply(context.Background(), "tenant-one", "subject-one", req); err != nil {
 				t.Fatal(err)
 			}
