@@ -78,3 +78,29 @@ func TestDiskHeadRefusesConflictingRevisionAndOwner(t *testing.T) {
 		t.Fatalf("rejected change modified head: %+v %v", last, err)
 	}
 }
+
+func TestDiskHeadRejectsMissingAndDamagedHistory(t *testing.T) {
+	store := DiskHeadStore{Root: filepath.Join(t.TempDir(), "source-owned")}
+	if _, err := store.Read(headScope()); !errors.Is(err, ErrHeadAbsent) {
+		t.Fatalf("new source unexpectedly has history: %v", err)
+	}
+	if err := store.Advance(headStatement(2)); !errors.Is(err, ErrHeadAbsent) {
+		t.Fatalf("ordinary update initialized absent source: %v", err)
+	}
+	if err := store.Initialize(headStatement(1)); err != nil {
+		t.Fatal(err)
+	}
+	path := store.path(headScope())
+	if err := os.Remove(path); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.Read(headScope()); !errors.Is(err, ErrHeadCorrupt) {
+		t.Fatalf("missing initialized history accepted: %v", err)
+	}
+	if err := store.Initialize(headStatement(1)); !errors.Is(err, ErrHeadCorrupt) {
+		t.Fatalf("bootstrap reset initialized history: %v", err)
+	}
+	if err := store.Advance(headStatement(2)); !errors.Is(err, ErrHeadCorrupt) {
+		t.Fatalf("update reset missing history: %v", err)
+	}
+}
