@@ -91,7 +91,7 @@ func TestSignedCheckpointCannotCrossSyntheticScopes(t *testing.T) {
 
 type sourceHeadFixture struct {
 	statement checkpoint.Statement
-	private ed25519.PrivateKey
+	private   ed25519.PrivateKey
 	onRequest func() error
 }
 
@@ -134,11 +134,11 @@ func TestChallengedHeadRechecksJournalAfterProviderCall(t *testing.T) {
 		t.Fatal(err)
 	}
 	statement := checkpoint.Statement{
-		Version: checkpoint.Version,
-		Issuer: "source-fixture",
-		KeyID: "ephemeral-fixture",
-		ScopeDigest: scope,
-		Sequence: 9,
+		Version:       checkpoint.Version,
+		Issuer:        "source-fixture",
+		KeyID:         "ephemeral-fixture",
+		ScopeDigest:   scope,
+		Sequence:      9,
 		JournalDigest: sha256.Sum256(raw),
 	}
 	payload, err := checkpoint.SigningPayload(statement)
