@@ -22,6 +22,10 @@ type diskLedger struct {
 
 const maxLedgerBytes = 1024 * 1024
 
+// ErrCommitUncertain means the new source record may already be visible.
+// Resolve its exact operation ID through source inspection before retrying.
+var ErrCommitUncertain = errors.New("synthetic source journal commit outcome uncertain")
+
 func sourceLedgerPath(choicePath string) string {
 	return filepath.Join(filepath.Dir(choicePath), "journal-"+filepath.Base(choicePath))
 }
@@ -98,6 +102,10 @@ func readSourceLedger(path string) (diskLedger, error) {
 }
 
 func writeSourceLedger(path string, ledger diskLedger) error {
+	return writeSourceLedgerWithCheckpoint(path, ledger, nil)
+}
+
+func writeSourceLedgerWithCheckpoint(path string, ledger diskLedger, checkpoint func(string) error) error {
 	if err := ledger.validate(); err != nil {
 		return err
 	}
@@ -127,15 +135,28 @@ func writeSourceLedger(path string, ledger diskLedger) error {
 	if err := temp.Close(); err != nil {
 		return err
 	}
+	if checkpoint != nil {
+		if err := checkpoint("before_rename"); err != nil {
+			return err
+		}
+	}
 	if err := os.Rename(name, path); err != nil {
 		return err
 	}
+	if checkpoint != nil {
+		if err := checkpoint("after_rename"); err != nil {
+			return fmt.Errorf("%w: after rename: %v", ErrCommitUncertain, err)
+		}
+	}
 	dir, err := os.Open(parent)
 	if err != nil {
-		return err
+		return fmt.Errorf("%w: parent directory open failed: %v", ErrCommitUncertain, err)
 	}
 	defer dir.Close()
-	return dir.Sync()
+	if err := dir.Sync(); err != nil {
+		return fmt.Errorf("%w: parent directory sync failed: %v", ErrCommitUncertain, err)
+	}
+	return nil
 }
 
 // withSourceLedger serializes cooperating goroutines AND separate processes.
