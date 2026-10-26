@@ -88,3 +88,24 @@ func TestSignedCheckpointCannotCrossSyntheticScopes(t *testing.T) {
 		t.Fatal("synthetic subject scope digest was not isolated")
 	}
 }
+
+type sourceHeadFixture struct {
+	statement checkpoint.Statement
+	private ed25519.PrivateKey
+	onRequest func() error
+}
+
+func (f sourceHeadFixture) CurrentHead(_ context.Context, request checkpoint.HeadRequest) (checkpoint.HeadProof, error) {
+	if f.onRequest != nil {
+		if err := f.onRequest(); err != nil {
+			return checkpoint.HeadProof{}, err
+		}
+	}
+	head := checkpoint.HeadProof{Statement: f.statement, Nonce: request.Nonce}
+	payload, err := checkpoint.HeadSigningPayload(head)
+	if err != nil {
+		return checkpoint.HeadProof{}, err
+	}
+	head.Signature = ed25519.Sign(f.private, payload)
+	return head, nil
+}
