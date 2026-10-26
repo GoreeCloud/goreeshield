@@ -117,14 +117,20 @@ func TestLegacyJournalGetsMarkerOnNextWrite(t *testing.T) {
 func TestInterruptedFirstInitializationRequiresReview(t *testing.T) {
 	d := scoped.Directory{Root: filepath.Join(t.TempDir(), "scopes")}
 	store, err := d.Store("tenant-one", "subject-one")
-	if err != nil { t.Fatal(err) }
+	if err != nil {
+		t.Fatal(err)
+	}
 	path := sourceLedgerPath(store.Path)
 	stopped := errors.New("test stop before publication")
 	err = writeSourceLedgerWithCheckpoint(path, diskLedger{Version: 1, Records: map[string]record{}}, func(stage string) error {
-		if stage == "before_rename" { return stopped }
+		if stage == "before_rename" {
+			return stopped
+		}
 		return nil
 	})
-	if !errors.Is(err, stopped) { t.Fatalf("checkpoint not triggered: %v", err) }
+	if !errors.Is(err, stopped) {
+		t.Fatalf("checkpoint not triggered: %v", err)
+	}
 	if _, err := readSourceLedger(path); !errors.Is(err, ErrJournalMissing) {
 		t.Fatalf("interrupted initial journal treated as fresh: %v", err)
 	}
