@@ -74,3 +74,58 @@ func TestJournalWitnessCorruptionAndPermissionsFailClosed(t *testing.T) {
 		t.Fatalf("corrupt checksum witness was accepted: %v", err)
 	}
 }
+
+func TestLegacyJournalWithoutWitnessMigratesOnWrite(t *testing.T) {
+	d := scoped.Directory{Root: filepath.Join(t.TempDir(), "scopes")}
+	store, err := d.Store("tenant-one", "subject-one")
+	if err != nil {
+		t.Fatal(err)
+	}
+	path := sourceLedgerPath(store.Path)
+	if err := os.WriteFile(path, []byte("{\"version\":1,\"count\":0,\"records\":{}}\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	source := &DiskSource{Directory: d}
+	if n, err := source.Count("tenant-one", "subject-one"); err != nil || n != 0 {
+		t.Fatalf("legacy synthetic journal was rejected: %d %v", n, err)
+	}
+	req := fixtureRequest("op-migrated-witness", 1)
+	if err := source.Apply(context.Background(), "tenant-one", "subject-one", req); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok, err := readJournalWitness(path); err != nil || !ok {
+		t.Fatalf("legacy journal did not receive checksum witness: found=%v err=%v", ok, err)
+	}
+	if _, err := source.Count("tenant-one", "subject-one"); err != nil {
+		t.Fatalf("migrated witness does not match source journal: %v", err)
+	}
+}
+
+func TestPostRenameInterruptionWithOldWitnessFailsClosed(t *testing.T) {
+	d := scoped.Directory{Root: filepath.Join(t.TempDir(), "scopes")}
+	store, err := d.Store("tenant-one", "subject-one")
+	if err != nil {
+		t.Fatal(err)
+	}
+	path := sourceLedgerPath(store.Path)
+	if err := writeSourceLedger(path, diskLedger{Version: 1, Records: map[string]record{}}); err != nil {
+		t.Fatal(err)
+	}
+	req := fixtureRequest("op-unacknowledged", 1)
+	next := diskLedger{Version: 1, Count: 1, Records: map[string]record{
+		req.OperationID: {Request: req, Status: "applied"},
+	}}
+	fault := errors.New("synthetic interruption after rename")
+	err = writeSourceLedgerWithCheckpoint(path, next, func(stage string) error {
+		if stage == "after_rename" {
+			return fault
+		}
+		return nil
+	})
+	if !errors.Is(err, ErrCommitUncertain) {
+		t.Fatalf("expected uncertain commit: %v", err)
+	}
+	if _, err := readSourceLedger(path); !errors.Is(err, ErrJournalRollback) {
+		t.Fatalf("unsynced witness discrepancy was trusted: %v", err)
+	}
+}
