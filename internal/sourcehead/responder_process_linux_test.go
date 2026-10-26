@@ -75,3 +75,33 @@ func TestDurableSourceHeadChild(t *testing.T) {
 		_ = conn.Close()
 	}
 }
+
+func launchDurableSourceChild(t *testing.T, ctx context.Context, root, socket string) (*exec.Cmd, durableBoot) {
+	t.Helper()
+	cmd := exec.CommandContext(ctx, os.Args[0], "-test.run=^TestDurableSourceHeadChild$")
+	cmd.Env = append(os.Environ(),
+		"GS_OWNING_HEAD_CHILD=1", "GS_OWNING_HEAD_ROOT="+root,
+		"GS_OWNING_HEAD_SOCKET="+socket)
+	output, err := cmd.StdoutPipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := cmd.Start(); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		if cmd.ProcessState == nil {
+			_ = cmd.Process.Kill()
+			_ = cmd.Wait()
+		}
+	})
+	line, err := bufio.NewReader(output).ReadBytes('\n')
+	if err != nil {
+		t.Fatalf("source child readiness missing: %v", err)
+	}
+	var boot durableBoot
+	if err := json.Unmarshal(line, &boot); err != nil {
+		t.Fatal(err)
+	}
+	return cmd, boot
+}
