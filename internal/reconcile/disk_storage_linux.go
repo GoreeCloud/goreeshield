@@ -22,6 +22,10 @@ type diskLedger struct {
 
 const maxLedgerBytes = 1024 * 1024
 
+// ErrCommitUncertain means the new source record may already be visible.
+// Resolve its exact operation ID through source inspection before retrying.
+var ErrCommitUncertain = errors.New("synthetic source journal commit outcome uncertain")
+
 func sourceLedgerPath(choicePath string) string {
 	return filepath.Join(filepath.Dir(choicePath), "journal-"+filepath.Base(choicePath))
 }
