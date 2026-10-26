@@ -93,12 +93,19 @@ func TestDurableSourceHeadChild(t *testing.T) {
 	}
 }
 
-func launchDurableSourceChild(t *testing.T, ctx context.Context, root, socket string) (*exec.Cmd, durableBoot) {
+func launchDurableSourceChild(t *testing.T, ctx context.Context, root, socket string, testKeyAndPin ...string) (*exec.Cmd, durableBoot) {
 	t.Helper()
 	cmd := exec.CommandContext(ctx, os.Args[0], "-test.run=^TestDurableSourceHeadChild$")
 	cmd.Env = append(os.Environ(),
 		"GS_OWNING_HEAD_CHILD=1", "GS_OWNING_HEAD_ROOT="+root,
 		"GS_OWNING_HEAD_SOCKET="+socket)
+	if len(testKeyAndPin) != 0 {
+		if len(testKeyAndPin) != 2 {
+			t.Fatal("test signer fixture requires a key path and pinned public key")
+		}
+		cmd.Env = append(cmd.Env, "GS_OWNING_HEAD_TEST_KEY="+testKeyAndPin[0],
+			"GS_OWNING_HEAD_TEST_PIN="+testKeyAndPin[1])
+	}
 	output, err := cmd.StdoutPipe()
 	if err != nil {
 		t.Fatal(err)
