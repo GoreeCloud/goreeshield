@@ -61,6 +61,7 @@ The planned server and apps must be genuinely native to each declared target ope
 - [Required checksum witness after journal migration](docs/journal-witness-required.md)
 - [Source-owned signed checkpoint verifier v1](docs/source-checkpoint-verifier.md)
 - [Challenged source-head verification contract](docs/source-head-challenge.md)
+- [Linux source-head process-boundary experiment](docs/linux-source-head-process-boundary.md)
 - [Ambiguous source acknowledgement recovery](docs/uncertain-source-acknowledgements.md)
 
 This **public** repository must not contain credentials, private keys, production data, private infrastructure details, or private incident information. Project planning documents are not a substitute for GoreeCloud's authoritative governance. Licensing and first supported platforms are to be decided before implementation.
@@ -136,3 +137,7 @@ The stacked `feat/source-owned-checkpoint-verifier` branch defines a verificatio
 ## Challenged synthetic source head
 
 The `feat/challenged-source-head-verification` branch defines a verification-only, nonce-bound Ed25519 source-head interface. It rejects reused challenges, stale signed checkpoints, mismatched scope/journal data, untrusted keys and missing providers. A Linux fixture checks the local journal before and after invoking the source callback without holding its file lock during the call. **There is no connected independently operated source service, production signer, Identity authorization, or verified privacy outcome.** See [challenged source head](docs/source-head-challenge.md).
+
+## Private Linux source-head process fixture
+
+The `feat/unix-source-head-provider-fixture` branch adds a **Linux Unix-domain socket transport** for the signed source-head contract and tests it against a separate short-lived Linux process holding an ephemeral Ed25519 test key. A private socket path, configured peer UID and Linux `SO_PEERCRED` are checked before accepting any head response, and the existing verifier must still validate the signature, fresh challenge, scope, journal and sequence. This is not a production daemon or an independently trusted real GoreeCloud source provider. See [source-head process boundary](docs/linux-source-head-process-boundary.md).
