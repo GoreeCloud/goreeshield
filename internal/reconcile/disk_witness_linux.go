@@ -54,3 +54,47 @@ func readJournalWitness(path string) (string, bool, error) {
 	}
 	return hash, true, nil
 }
+
+// Checksum the exact published JSON bytes, not a reconstructed map; source
+// operations must already be serialized by the cooperating journal lock.
+func hashCurrentJournal(path string) (string, error) {
+	f, err := os.OpenFile(path, os.O_RDONLY|syscall.O_NOFOLLOW, 0)
+	if err != nil {
+		return "", err
+	}
+	defer f.Close()
+	if err := ownedPrivateRegular(f); err != nil {
+		return "", err
+	}
+	info, err := f.Stat()
+	if err != nil {
+		return "", err
+	}
+	if info.Size() > maxLedgerBytes {
+		return "", ErrJournalWitness
+	}
+	h := sha256.New()
+	n, err := io.Copy(h, io.LimitReader(f, maxLedgerBytes+1))
+	if err != nil {
+		return "", err
+	}
+	if n > maxLedgerBytes {
+		return "", ErrJournalWitness
+	}
+	return hex.EncodeToString(h.Sum(nil)), nil
+}
+
+func verifyJournalWitness(path string) error {
+	want, found, err := readJournalWitness(path)
+	if err != nil || !found {
+		return err
+	}
+	got, err := hashCurrentJournal(path)
+	if err != nil {
+		return err
+	}
+	if want != got {
+		return ErrJournalRollback
+	}
+	return nil
+}
