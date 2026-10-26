@@ -7,12 +7,16 @@ import (
 	"context"
 	"crypto/ed25519"
 	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
+	"io"
 	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"syscall"
 	"testing"
 	"time"
 
@@ -44,7 +48,21 @@ func TestDurableSourceHeadChild(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	responder := Responder{Store: store, Signer: private, Issuer: statement.Issuer, KeyID: statement.KeyID}
+	if keyFile := os.Getenv("GS_OWNING_HEAD_TEST_KEY"); keyFile != "" {
+		private, err = readTestOnlySigner(keyFile)
+		if err != nil {
+			t.Fatal(err)
+		}
+		public = private.Public().(ed25519.PublicKey)
+	}
+	pinned := public
+	if pinHex := os.Getenv("GS_OWNING_HEAD_TEST_PIN"); pinHex != "" {
+		pinned, err = hex.DecodeString(pinHex)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	responder := Responder{Store: store, Signer: private, Issuer: statement.Issuer, KeyID: statement.KeyID, PinnedPublicKey: pinned}
 	socket, err := net.Listen("unix", os.Getenv("GS_OWNING_HEAD_SOCKET"))
 	if err != nil {
 		t.Fatal(err)
@@ -76,12 +94,19 @@ func TestDurableSourceHeadChild(t *testing.T) {
 	}
 }
 
-func launchDurableSourceChild(t *testing.T, ctx context.Context, root, socket string) (*exec.Cmd, durableBoot) {
+func launchDurableSourceChild(t *testing.T, ctx context.Context, root, socket string, testKeyAndPin ...string) (*exec.Cmd, durableBoot) {
 	t.Helper()
 	cmd := exec.CommandContext(ctx, os.Args[0], "-test.run=^TestDurableSourceHeadChild$")
 	cmd.Env = append(os.Environ(),
 		"GS_OWNING_HEAD_CHILD=1", "GS_OWNING_HEAD_ROOT="+root,
 		"GS_OWNING_HEAD_SOCKET="+socket)
+	if len(testKeyAndPin) != 0 {
+		if len(testKeyAndPin) != 2 {
+			t.Fatal("test signer fixture requires a key path and pinned public key")
+		}
+		cmd.Env = append(cmd.Env, "GS_OWNING_HEAD_TEST_KEY="+testKeyAndPin[0],
+			"GS_OWNING_HEAD_TEST_PIN="+testKeyAndPin[1])
+	}
 	output, err := cmd.StdoutPipe()
 	if err != nil {
 		t.Fatal(err)
@@ -146,4 +171,31 @@ func TestDurableSignerAcrossSourceProcessRestart(t *testing.T) {
 	if err := checkpoint.VerifyWithFreshHead(ctx, provider, newBoot.Proof, newTrust, first.ScopeDigest, first.JournalDigest); err != nil {
 		t.Fatalf("fixture current head rejected with freshly pinned test key: %v", err)
 	}
+}
+
+// Test-only credential fixture. This is intentionally not linked into any
+// production source package or accepted as a production key manager.
+func readTestOnlySigner(path string) (ed25519.PrivateKey, error) {
+	file, err := os.OpenFile(path, os.O_RDONLY|syscall.O_NOFOLLOW, 0)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+	info, err := file.Stat()
+	if err != nil {
+		return nil, err
+	}
+	stat, ok := info.Sys().(*syscall.Stat_t)
+	if !info.Mode().IsRegular() || info.Mode().Perm() != 0600 || !ok ||
+		stat.Uid != uint32(os.Geteuid()) || stat.Nlink != 1 ||
+		info.Size() != ed25519.SeedSize {
+		return nil, fmt.Errorf("test-only signer file is not owned, private and regular")
+	}
+	seed := make([]byte, ed25519.SeedSize)
+	if _, err := io.ReadFull(file, seed); err != nil {
+		return nil, err
+	}
+	private := ed25519.NewKeyFromSeed(seed)
+	clear(seed)
+	return private, nil
 }

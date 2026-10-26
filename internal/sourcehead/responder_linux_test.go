@@ -42,7 +42,7 @@ func TestResponderReadsLatestDurableHead(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	responder := Responder{Store: store, Signer: private, Issuer: first.Issuer, KeyID: first.KeyID}
+	responder := Responder{Store: store, Signer: private, Issuer: first.Issuer, KeyID: first.KeyID, PinnedPublicKey: public}
 	trust := checkpoint.Trust{Issuer: first.Issuer, KeyID: first.KeyID, PublicKey: public}
 	proof := testProof(t, first, private)
 	ctx := context.Background()
@@ -67,11 +67,11 @@ func TestResponderFailsClosedOnUntrustedOrMissingState(t *testing.T) {
 	store := checkpoint.DiskHeadStore{Root: filepath.Join(t.TempDir(), "heads")}
 	first := testStatement(1)
 	request := checkpoint.HeadRequest{ScopeDigest: first.ScopeDigest, Nonce: sha256.Sum256([]byte("nonce"))}
-	_, private, err := ed25519.GenerateKey(rand.Reader)
+	public, private, err := ed25519.GenerateKey(rand.Reader)
 	if err != nil {
 		t.Fatal(err)
 	}
-	responder := Responder{Store: store, Signer: private, Issuer: first.Issuer, KeyID: first.KeyID}
+	responder := Responder{Store: store, Signer: private, Issuer: first.Issuer, KeyID: first.KeyID, PinnedPublicKey: public}
 	if _, err := responder.Respond(context.Background(), request); !errors.Is(err, checkpoint.ErrHeadAbsent) {
 		t.Fatalf("missing source head accepted: %v", err)
 	}
@@ -88,6 +88,20 @@ func TestResponderFailsClosedOnUntrustedOrMissingState(t *testing.T) {
 		t.Fatalf("wrong signing identity accepted: %v", err)
 	}
 	responder.KeyID = first.KeyID
+	responder.PinnedPublicKey = nil
+	if _, err := responder.Respond(context.Background(), request); !errors.Is(err, ErrSignerKeyMismatch) {
+		t.Fatalf("missing signer pin accepted: %v", err)
+	}
+	_, alternate, err := ed25519.GenerateKey(rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	responder.Signer = alternate
+	responder.PinnedPublicKey = public
+	if _, err := responder.Respond(context.Background(), request); !errors.Is(err, ErrSignerKeyMismatch) {
+		t.Fatalf("rotated unapproved signer accepted: %v", err)
+	}
+	responder.Signer = private
 	request.Nonce = [32]byte{}
 	if _, err := responder.Respond(context.Background(), request); !errors.Is(err, checkpoint.ErrInvalid) {
 		t.Fatalf("empty nonce accepted: %v", err)
