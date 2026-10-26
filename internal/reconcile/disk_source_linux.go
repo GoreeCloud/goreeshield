@@ -61,3 +61,40 @@ func (s *DiskSource) Apply(ctx context.Context, tenant, subject string, req cont
 		return nil
 	})
 }
+
+// Inspect reads the SAME synthetic source journal after dispatch.
+// It is not an independent security or legal attestation.
+func (s *DiskSource) Inspect(ctx context.Context, tenant, subject, operationID string) (Observation, error) {
+	var out Observation
+	if s == nil || ctx == nil || ctx.Err() != nil {
+		return out, ErrUnavailable
+	}
+	store, err := s.Directory.Store(tenant, subject)
+	if err != nil {
+		return out, err
+	}
+	err = withSourceLedger(sourceLedgerPath(store.Path), func(j *diskLedger) error {
+		if entry, exists := j.Records[operationID]; exists {
+			out = Observation{Found: true, OperationID: operationID, Request: entry.Request, Status: entry.Status}
+		}
+		return nil
+	})
+	return out, err
+}
+
+// Count returns the synthetic count saved in the same local journal.
+func (s *DiskSource) Count(tenant, subject string) (int, error) {
+	if s == nil {
+		return 0, ErrUnavailable
+	}
+	store, err := s.Directory.Store(tenant, subject)
+	if err != nil {
+		return 0, err
+	}
+	var count int
+	err = withSourceLedger(sourceLedgerPath(store.Path), func(j *diskLedger) error {
+		count = j.Count
+		return nil
+	})
+	return count, err
+}
