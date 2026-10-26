@@ -135,7 +135,10 @@ func writeSourceLedger(path string, ledger diskLedger) error {
 		return err
 	}
 	defer dir.Close()
-	return dir.Sync()
+	if err := dir.Sync(); err != nil {
+		return fmt.Errorf("source journal rename completed, durability uncertain: %w", err)
+	}
+	return nil
 }
 
 // withSourceLedger serializes cooperating goroutines AND separate processes.
