@@ -52,6 +52,7 @@ The planned server and apps must be genuinely native to each declared target ope
 - [Source-owned synthetic outcome reconciliation](docs/source-reconciliation.md)
 - [Persistent synthetic source journal](docs/durable-source.md)
 - [Linux cross-process journal and integrity verification](docs/journal-process-verification.md)
+- [Journal crash-recovery assessment and staged-file tests](docs/journal-crash-recovery-assessment.md)
 
 This **public** repository must not contain credentials, private keys, production data, private infrastructure details, or private incident information. Project planning documents are not a substitute for GoreeCloud's authoritative governance. Licensing and first supported platforms are to be decided before implementation.
 
@@ -90,3 +91,7 @@ The `feat/durable-source-journal` branch adds a strictly local `DiskSource` fixt
 ## Cross-process recovery testing
 
 The `feat/durable-journal-process-tests` branch expands the local synthetic source journal with real Go test subprocesses exercising the same operation ID, additional journal/lock hardlink refusal, and corrupted-record validation. It is **not** a real source application or a completed power-loss/crash-recovery test. See the [process verification limitations](docs/journal-process-verification.md).
+
+## Journal interruption assessment
+
+The stacked `feat/journal-crash-recovery` branch adds local tests ensuring that orphaned journal staging files cannot override a committed synthetic observation and are **not** automatically promoted to repair a corrupted authoritative journal. Controlled process termination at the journal writer's `fsync`/rename checkpoints has **not** been verified. See the [crash-recovery assessment](docs/journal-crash-recovery-assessment.md). No real source product or production data is involved.
