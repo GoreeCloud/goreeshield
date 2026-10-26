@@ -44,7 +44,7 @@ func TestDurableSourceHeadChild(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	responder := Responder{Store: store, Signer: private, Issuer: statement.Issuer, KeyID: statement.KeyID}
+	responder := Responder{Store: store, Signer: private, Issuer: statement.Issuer, KeyID: statement.KeyID, PinnedPublicKey: public}
 	socket, err := net.Listen("unix", os.Getenv("GS_OWNING_HEAD_SOCKET"))
 	if err != nil {
 		t.Fatal(err)
