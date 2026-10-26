@@ -52,3 +52,39 @@ func (s DiskHeadStore) privateRoot() error {
 	}
 	return nil
 }
+
+func privateHeadFile(f *os.File) error {
+	info, err := f.Stat()
+	if err != nil {
+		return err
+	}
+	stat, ok := info.Sys().(*syscall.Stat_t)
+	if !info.Mode().IsRegular() || info.Mode().Perm()&0077 != 0 ||
+		!ok || stat.Uid != uint32(os.Geteuid()) || stat.Nlink != 1 {
+		return ErrHeadCorrupt
+	}
+	return nil
+}
+
+func (s DiskHeadStore) withLock(scope [32]byte, fn func(string) error) error {
+	if emptyDigest(scope) {
+		return ErrInvalid
+	}
+	if err := s.privateRoot(); err != nil {
+		return err
+	}
+	path := s.path(scope)
+	lock, err := os.OpenFile(path+".lock", os.O_CREATE|os.O_RDWR|syscall.O_NOFOLLOW, 0600)
+	if err != nil {
+		return err
+	}
+	defer lock.Close()
+	if err := privateHeadFile(lock); err != nil {
+		return err
+	}
+	if err := syscall.Flock(int(lock.Fd()), syscall.LOCK_EX); err != nil {
+		return err
+	}
+	defer syscall.Flock(int(lock.Fd()), syscall.LOCK_UN)
+	return fn(path)
+}
