@@ -36,3 +36,43 @@ func journalMarked(path string) (bool, error) {
 	}
 	return true, nil
 }
+
+// initializeJournalMarker runs before publication of a first journal file.
+// If the marker survives but the journal does not, recovery fails closed.
+func initializeJournalMarker(path string) error {
+	exists, err := journalMarked(path)
+	if err != nil || exists {
+		return err
+	}
+	f, err := os.OpenFile(journalMarkerPath(path), os.O_WRONLY|os.O_CREATE|os.O_EXCL|syscall.O_NOFOLLOW, 0600)
+	if errors.Is(err, os.ErrExist) {
+		exists, err := journalMarked(path)
+		if err != nil {
+			return err
+		}
+		if exists {
+			return nil
+		}
+		return ErrJournalMarker
+	}
+	if err != nil {
+		return err
+	}
+	if _, err := f.WriteString(journalMarkerContents); err != nil {
+		f.Close()
+		return err
+	}
+	if err := f.Sync(); err != nil {
+		f.Close()
+		return err
+	}
+	if err := f.Close(); err != nil {
+		return err
+	}
+	dir, err := os.Open(filepath.Dir(path))
+	if err != nil {
+		return err
+	}
+	defer dir.Close()
+	return dir.Sync()
+}
