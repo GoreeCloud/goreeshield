@@ -135,6 +135,11 @@ func writeSourceLedgerWithCheckpoint(path string, ledger diskLedger, checkpoint 
 	if err := temp.Close(); err != nil {
 		return err
 	}
+	if checkpoint != nil {
+		if err := checkpoint("before_rename"); err != nil {
+			return err
+		}
+	}
 	if err := os.Rename(name, path); err != nil {
 		return err
 	}
