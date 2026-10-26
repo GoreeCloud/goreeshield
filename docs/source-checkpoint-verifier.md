@@ -25,6 +25,12 @@ The `checkpoint.ScopeDigest` function binds exact tenant and subject strings usi
 
 `VerifySyntheticJournalCheckpoint` obtains the scoped store, acquires the cooperating source-journal lock, validates the marker and local witness, hashes the current journal bytes, and verifies the source statement against that digest and exact scope. It is read-only. Tests sign with an ephemeral source fixture key, confirm that a matching statement is accepted, and verify that a later synthetic journal write invalidates the earlier signed state.
 
+## Coordinated local rollback exercise
+
+A separate Linux regression test restores **all three** valid local files—journal, marker and witness—to an earlier snapshot. Their same-UID consistency checks still accept this older tuple. A previously signed source statement also verifies if the caller supplies the old minimum sequence. In contrast, an **independently authenticated newer** source sequence causes `ErrStale` and refuses the signed replay.
+
+This is a deliberate demonstration of the remaining dependency: signature verification does not create its own trusted current head. The fixture supplies that newer minimum as test data; there is no live independent source, durable sequence registry or production key service in this PR.
+
 ## Mandatory trust requirements before production
 
 - The owning GoreeCloud application must generate and protect its private signing key separately. GoreeShield must have an authenticated, independently provisioned trust anchor and an audited key rotation/revocation policy.
