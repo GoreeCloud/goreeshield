@@ -31,8 +31,8 @@ func journalMarked(path string) (bool, error) {
 	if err := ownedPrivateRegular(f); err != nil {
 		return false, fmt.Errorf("%w: %v", ErrJournalMarker, err)
 	}
-	data, err := io.ReadAll(io.LimitReader(f, int64(len(journalMarkerContents)+1)))
-	if err != nil || string(data) != journalMarkerContents {
+	data, err := io.ReadAll(io.LimitReader(f, int64(len(witnessRequiredMarkerContents)+1)))
+	if err != nil || (string(data) != journalMarkerContents && string(data) != witnessRequiredMarkerContents) {
 		return false, ErrJournalMarker
 	}
 	return true, nil
