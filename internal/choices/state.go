@@ -25,8 +25,9 @@ func EmptyState() State { return State{SchemaVersion: 1, Choices: map[string]Cho
 
 // Allowed always fails closed for missing, unknown, or outdated grants.
 func (s State) Allowed(purposeID string) bool {
-	// Legacy state lacking a revision cannot authorize a new synthetic action.
-	if s.Revision == 0 {
+	// Unsupported schemas and legacy state lacking a revision cannot authorize
+	// a new synthetic action, even when a caller bypasses storage validation.
+	if s.SchemaVersion != 1 || s.Revision == 0 {
 		return false
 	}
 	purpose, ok := FindPurpose(purposeID)
