@@ -39,6 +39,12 @@ GoreeShield **does not own general cybersecurity or protective threat-defense fu
 
 GoreeShield also does not replace each application's duty to protect data, implement its own authorized operations, or honor user preferences. It may coordinate privacy decisions through approved interfaces when those are specified and verified.
 
+## Development checkpoint — November 6, 2026
+
+GoreeShield's **experimental, Linux-local privacy Choices implementation is being developed in draft pull requests**, not on this repository's default branch. [Draft PR #6](https://github.com/GoreeCloud/goreeshield/pull/6) begins a synthetic purpose and consent proof of concept; [draft PR #30](https://github.com/GoreeCloud/goreeshield/pull/30) adds a fail-closed regression for unsupported state schemas on top of preceding draft work. PR #30 targets another feature branch, not `main`. Its head's **Linux prototype checks** reported success when inspected on November 6, 2026, but that check is not end-to-end or release acceptance.
+
+The experimental work must remain subject to dependency-ordered review, code and privacy-security testing, source-owned enforcement checks, genuine authenticated subject binding, independent outcome verification, and target-OS native acceptance before any integration or release claim. Track outstanding work in [privacy architecture issue #3](https://github.com/GoreeCloud/goreeshield/issues/3), [native MVP issue #4](https://github.com/GoreeCloud/goreeshield/issues/4), and [Choices issue #5](https://github.com/GoreeCloud/goreeshield/issues/5). No real personal-information processing, operational source adapters, production identity integration, or deployed service is verified by these draft tests.
+
 ## Governance and integration
 
 GoreeShield is one of GoreeCloud's [five Mandatory Integrated Platform Systems (MIPS)](https://github.com/GoreeCloud/MIPS). Applicable GoreeCloud products must assess and verify their GoreeShield integration, or document a defensible non-applicability rationale, before satisfying the MIPS prerequisite for **Anchor** release eligibility.
