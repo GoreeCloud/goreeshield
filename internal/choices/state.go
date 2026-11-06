@@ -39,6 +39,9 @@ func (s State) Allowed(purposeID string) bool {
 }
 
 func (s *State) Grant(purposeID, noticeVersion string, affirmative bool, now time.Time) error {
+	if s.SchemaVersion != 1 {
+		return fmt.Errorf("unsupported state schema version %d", s.SchemaVersion)
+	}
 	purpose, ok := FindPurpose(purposeID)
 	if !ok {
 		return errors.New("unknown processing purpose")
@@ -64,6 +67,9 @@ func (s *State) Grant(purposeID, noticeVersion string, affirmative bool, now tim
 }
 
 func (s *State) Withdraw(purposeID string, now time.Time) error {
+	if s.SchemaVersion != 1 {
+		return fmt.Errorf("unsupported state schema version %d", s.SchemaVersion)
+	}
 	purpose, ok := FindPurpose(purposeID)
 	if !ok {
 		return errors.New("unknown processing purpose")
