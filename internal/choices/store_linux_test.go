@@ -3,6 +3,7 @@
 package choices
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"sync"
@@ -107,8 +108,15 @@ func TestConcurrentUpdateIsSerialized(t *testing.T) {
 	}
 	wg.Wait()
 	close(errs)
+	var accepted uint64
 	for err := range errs {
-		if err != nil {
+		switch {
+		case err == nil:
+			accepted++
+		case errors.Is(err, errStaleGrant):
+			// Concurrent arrivals are not timestamp-ordered. A grant
+			// older than the last withdrawal must fail without writing.
+		default:
 			t.Fatal(err)
 		}
 	}
@@ -121,9 +129,11 @@ func TestConcurrentUpdateIsSerialized(t *testing.T) {
 	}
 	// A valid final state alone does not prove serialization: concurrent
 	// read-modify-write operations could silently discard earlier decisions.
-	// Every successful local choice change must consume exactly one revision.
-	if got.Revision != 12 {
-		t.Fatalf("concurrent updates lost decisions: got revision %d, want 12", got.Revision)
+	// Every accepted local choice change must consume exactly one revision.
+	// Rejected stale grants must not consume a revision. This preserves
+	// serialization without silently treating delayed consent as new consent.
+	if got.Revision != accepted {
+		t.Fatalf("concurrent updates lost decisions: got revision %d, want %d accepted", got.Revision, accepted)
 	}
 	if got.Choices["demo-local-metrics"].Revision != got.Revision {
 		t.Fatalf("latest purpose decision does not match state revision: %+v", got)
