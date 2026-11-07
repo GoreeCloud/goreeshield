@@ -59,6 +59,13 @@ func (s *State) Grant(purposeID, noticeVersion string, affirmative bool, now tim
 	if now.IsZero() {
 		return errors.New("decision time is required")
 	}
+	// Reject an older/equal timestamp for this same optional purpose.
+	// A delayed stale grant must not revive an already withdrawn decision.
+	// Source-signed identity, operation IDs and revision fencing remain required
+	// to prevent replay with forged timestamps in a real integration.
+	if previous, exists := s.Choices[purposeID]; exists && !now.After(previous.ChangedAt) {
+		return errors.New("grant time does not advance the prior purpose decision")
+	}
 	if s.Revision == ^uint64(0) {
 		return errors.New("choice revision exhausted")
 	}
