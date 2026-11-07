@@ -39,8 +39,10 @@ func (s State) Allowed(purposeID string) bool {
 }
 
 func (s *State) Grant(purposeID, noticeVersion string, affirmative bool, now time.Time) error {
-	if s.SchemaVersion != 1 {
-		return fmt.Errorf("unsupported state schema version %d", s.SchemaVersion)
+	// Direct callers must not mutate a corrupted or unsupported state before
+	// the persistence layer has an opportunity to reject it.
+	if err := s.Validate(); err != nil {
+		return err
 	}
 	purpose, ok := FindPurpose(purposeID)
 	if !ok {
@@ -55,11 +57,11 @@ func (s *State) Grant(purposeID, noticeVersion string, affirmative bool, now tim
 	if now.IsZero() {
 		return errors.New("decision time is required")
 	}
-	if s.Choices == nil {
-		s.Choices = map[string]Choice{}
-	}
 	if s.Revision == ^uint64(0) {
 		return errors.New("choice revision exhausted")
+	}
+	if s.Choices == nil {
+		s.Choices = map[string]Choice{}
 	}
 	s.Revision++
 	s.Choices[purposeID] = Choice{Granted: true, NoticeVersion: purpose.NoticeVersion, ChangedAt: now.UTC(), Revision: s.Revision}
@@ -67,8 +69,10 @@ func (s *State) Grant(purposeID, noticeVersion string, affirmative bool, now tim
 }
 
 func (s *State) Withdraw(purposeID string, now time.Time) error {
-	if s.SchemaVersion != 1 {
-		return fmt.Errorf("unsupported state schema version %d", s.SchemaVersion)
+	// Direct callers must not mutate a corrupted or unsupported state before
+	// the persistence layer has an opportunity to reject it.
+	if err := s.Validate(); err != nil {
+		return err
 	}
 	purpose, ok := FindPurpose(purposeID)
 	if !ok {
@@ -77,11 +81,11 @@ func (s *State) Withdraw(purposeID string, now time.Time) error {
 	if now.IsZero() {
 		return errors.New("decision time is required")
 	}
-	if s.Choices == nil {
-		s.Choices = map[string]Choice{}
-	}
 	if s.Revision == ^uint64(0) {
 		return errors.New("choice revision exhausted")
+	}
+	if s.Choices == nil {
+		s.Choices = map[string]Choice{}
 	}
 	s.Revision++
 	s.Choices[purposeID] = Choice{Granted: false, NoticeVersion: purpose.NoticeVersion, ChangedAt: now.UTC(), Revision: s.Revision}
