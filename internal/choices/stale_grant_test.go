@@ -20,8 +20,8 @@ func TestStaleRegrantAfterWithdrawalCannotResurrectSyntheticConsent(t *testing.T
 	}
 	before := State{
 		SchemaVersion: state.SchemaVersion,
-		Revision: state.Revision,
-		Choices: make(map[string]Choice, len(state.Choices)),
+		Revision:      state.Revision,
+		Choices:       make(map[string]Choice, len(state.Choices)),
 	}
 	for purpose, choice := range state.Choices {
 		before.Choices[purpose] = choice
