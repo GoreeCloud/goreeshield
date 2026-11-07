@@ -1,12 +1,29 @@
 # GoreeShield — Safe Promotion Gates
 
-**Checkpoint:** 2026-10-26. Engineering review guidance, not an approved release.
+**Checkpoint:** 2026-11-07. Engineering review guidance, not an approved release.
 
 ## Branch topology
 
-The active feature work is a series of dependent draft pull requests starting at foundation PR #1 and proceeding to signer-continuity PR #27. Each draft's base is its predecessor. Merging or rebasing out of order may obscure the tested diff and which invariants are actually present on `main`.
+I require dependency-ordered review of the active draft chain. It starts with foundation PR #1, includes the local Choices prototype (#6) and signer-continuity work (#27), and now extends through serialization (#29), schema read validation (#30), fail-closed schema mutations (#32), corrupted-state mutation refusal ([draft #34](https://github.com/GoreeCloud/goreeshield/pull/34)), and whole-state authorization validation ([draft #35](https://github.com/GoreeCloud/goreeshield/pull/35)), and stale re-grant timestamp refusal ([draft #36](https://github.com/GoreeCloud/goreeshield/pull/36)). These are representative milestones, **not a complete list of every intermediate draft**. Draft #36 targets #35's feature branch, **not `main`**; its latest Linux prototype checks passed at head `3ba7b8f964c55d511001bd6584e3f04be925ea3a` ([CI run](https://github.com/GoreeCloud/goreeshield/actions/runs/42416904621)). This update also preserves a nondecreasing per-purpose *logical* `ChangedAt` watermark across repeated withdrawals during local clock rollback; it does not authenticate actual event time. Green stacked-head tests do **not** imply any of the layers have reached `main` or provide production enforcement. Merging or rebasing out of order may obscure the tested diff and its invariants.
 
 Before promoting a layer, confirm its actual base/head commits match the reviewed code. Review and merge one dependency at a time, let GitHub recalculate remaining diffs, and rerun CI on the resulting target. Never convert uncertain outcomes to success through documentation.
+
+## GoreeShield privacy decision promotion matrix
+
+I require an owning source service to enforce privacy decisions independently. GoreeShield is the **privacy** authority; Wardveil is the **cybersecurity** authority; Mesh coordinates authorized transport and must not turn either system's status into a universal permission. Before allowing any real personal-data flow, independently demonstrate these negative and outcome tests:
+
+| Scenario | Required outcome | Evidence boundary |
+| --- | --- | --- |
+| Missing, withdrawn or expired optional consent | Deny the optional purpose-specific processing or disclosure | Verify both GoreeShield's decision **and source-owned enforcement**, not an in-memory fixture |
+| Wrong tenant, person, purpose, recipient or action | Deny; do not disclose cross-subject data | Authenticated actual identity and scoped, versioned decisions |
+| Unknown schema, invalid signature, replay or stale revision | Deny until a compatible verified decision is obtained | Validate at reads **and** writes; test mutation rejection and persisted revision integrity |
+| Delayed local re-grant predates last withdrawal | Deny the stale optional grant without changing the withdrawal or revision | Synthetic `State.Grant` rejects non-advancing per-purpose timestamps, while `Withdraw` preserves the previous local ordering watermark during clock skew; **not replay-safe without authenticated source revisions** |
+| Privacy provider timeout, restart or uncertain result | No automatic consent resurrection or positive transport acknowledgment | Re-read current decision and source outcome after recovery |
+| Authorized essential processing without optional consent requirement | Continue only under its documented approved basis | Avoid blanket denial and invented consent requirements |
+| Denial telemetry to Wardveil | Do not classify ordinary user withdrawal as an attack | No raw preferences, private content or personal identifiers in security events by default |
+| Mesh reports successful delivery | Do not interpret it as fulfilled withdrawal, deletion, export or rights request | Source system must provide independently observed operation outcome |
+
+Use only fictional subjects and synthetic data in the current drafts. These cases describe **acceptance requirements**, not working real-data integrations or guarantees. Actual consent notices, data inventories, policy/legal bases, key lifecycle, retention and user-accessible GC UI flows require independent review.
 
 ## Promotion checklist
 
