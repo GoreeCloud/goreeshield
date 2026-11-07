@@ -21,6 +21,10 @@ type State struct {
 	Choices       map[string]Choice `json:"choices"`
 }
 
+// errStaleGrant identifies a rejected local decision ordering conflict.
+// This is not an authenticated anti-replay mechanism.
+var errStaleGrant = errors.New("grant time does not advance the prior purpose decision")
+
 func EmptyState() State { return State{SchemaVersion: 1, Choices: map[string]Choice{}} }
 
 // Allowed fails closed for missing, unknown, outdated, or corrupt states.
@@ -64,7 +68,7 @@ func (s *State) Grant(purposeID, noticeVersion string, affirmative bool, now tim
 	// Source-signed identity, operation IDs and revision fencing remain required
 	// to prevent replay with forged timestamps in a real integration.
 	if previous, exists := s.Choices[purposeID]; exists && !now.After(previous.ChangedAt) {
-		return errors.New("grant time does not advance the prior purpose decision")
+		return errStaleGrant
 	}
 	if s.Revision == ^uint64(0) {
 		return errors.New("choice revision exhausted")
