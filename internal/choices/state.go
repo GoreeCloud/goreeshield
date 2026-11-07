@@ -94,6 +94,14 @@ func (s *State) Withdraw(purposeID string, now time.Time) error {
 	if now.IsZero() {
 		return errors.New("decision time is required")
 	}
+	// Withdrawal must remain possible during clock rollback, but must not
+	// lower the per-purpose ordering watermark. Otherwise a delayed old grant
+	// could look newer than the revoked choice and revive optional processing.
+	// ChangedAt is only a local logical floor under skew, not an attested
+	// physical event timestamp or a substitute for authenticated sequence IDs.
+	if previous, exists := s.Choices[purposeID]; exists && now.Before(previous.ChangedAt) {
+		now = previous.ChangedAt
+	}
 	if s.Revision == ^uint64(0) {
 		return errors.New("choice revision exhausted")
 	}
