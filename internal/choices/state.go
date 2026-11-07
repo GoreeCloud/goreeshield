@@ -21,6 +21,10 @@ type State struct {
 	Choices       map[string]Choice `json:"choices"`
 }
 
+// errStaleGrant identifies a rejected local decision ordering conflict.
+// This is not an authenticated anti-replay mechanism.
+var errStaleGrant = errors.New("grant time does not advance the prior purpose decision")
+
 func EmptyState() State { return State{SchemaVersion: 1, Choices: map[string]Choice{}} }
 
 // Allowed fails closed for missing, unknown, outdated, or corrupt states.
@@ -59,6 +63,13 @@ func (s *State) Grant(purposeID, noticeVersion string, affirmative bool, now tim
 	if now.IsZero() {
 		return errors.New("decision time is required")
 	}
+	// Reject an older/equal timestamp for this same optional purpose.
+	// A delayed stale grant must not revive an already withdrawn decision.
+	// Source-signed identity, operation IDs and revision fencing remain required
+	// to prevent replay with forged timestamps in a real integration.
+	if previous, exists := s.Choices[purposeID]; exists && !now.After(previous.ChangedAt) {
+		return errStaleGrant
+	}
 	if s.Revision == ^uint64(0) {
 		return errors.New("choice revision exhausted")
 	}
@@ -82,6 +93,14 @@ func (s *State) Withdraw(purposeID string, now time.Time) error {
 	}
 	if now.IsZero() {
 		return errors.New("decision time is required")
+	}
+	// Withdrawal must remain possible during clock rollback, but must not
+	// lower the per-purpose ordering watermark. Otherwise a delayed old grant
+	// could look newer than the revoked choice and revive optional processing.
+	// ChangedAt is only a local logical floor under skew, not an attested
+	// physical event timestamp or a substitute for authenticated sequence IDs.
+	if previous, exists := s.Choices[purposeID]; exists && now.Before(previous.ChangedAt) {
+		now = previous.ChangedAt
 	}
 	if s.Revision == ^uint64(0) {
 		return errors.New("choice revision exhausted")
