@@ -67,4 +67,32 @@ func TestStaleWithdrawalRemainsAcceptedToProtectPrivacy(t *testing.T) {
 	if state.Allowed("demo-local-metrics") {
 		t.Fatal("withdrawal must deny optional processing even with local clock skew")
 	}
+	// Reversing the clock must not roll back the last known ordering
+	// watermark. Otherwise an old grant could arrive after withdrawal
+	// carrying a timestamp that appears newer than the skewed withdrawal.
+	if got := state.Choices["demo-local-metrics"].ChangedAt; !got.Equal(start) {
+		t.Fatalf("withdrawal watermark moved backward: got %v, want %v", got, start)
+	}
+	if state.Revision != 2 {
+		t.Fatalf("withdrawal did not consume exactly one revision: %d", state.Revision)
+	}
+	for _, replay := range []time.Time{start.Add(-500 * time.Millisecond), start} {
+		if err := state.Grant("demo-local-metrics", "1", true, replay); err == nil {
+			t.Fatal("grant older than pre-withdrawal watermark must remain denied")
+		}
+		if state.Allowed("demo-local-metrics") || state.Revision != 2 {
+			t.Fatal("stale replay modified withdrawn consent or revision")
+		}
+	}
+	// Repeated revocations during backward clock skew are accepted and
+	// cannot lower the watermark to an earlier recorded event time.
+	if err := state.Withdraw("demo-local-metrics", start.Add(-2*time.Second)); err != nil {
+		t.Fatal(err)
+	}
+	if got := state.Choices["demo-local-metrics"].ChangedAt; !got.Equal(start) {
+		t.Fatalf("repeated withdrawal rolled back logical time: %v", got)
+	}
+	if state.Revision != 3 || state.Allowed("demo-local-metrics") {
+		t.Fatal("repeated withdrawal must remain an effective denial")
+	}
 }
