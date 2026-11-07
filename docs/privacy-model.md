@@ -43,3 +43,9 @@ Each scenario requires proportionate mitigations and security/privacy review bef
 ## Scope
 
 This specification is a technical starting point aligned with GoreeCloud's privacy-first direction, not an assertion of regulatory certification or complete data-rights support. Jurisdiction-specific requirements and product-specific data categories must be verified before implementation.
+
+## November 7, 2026 — bounded local replay guard (draft)
+
+The synthetic Linux Choices development chain introduces one **non-authoritative**, per-purpose ordering check: a new local `State.Grant` must carry a decision timestamp **strictly later** than that purpose's last stored decision timestamp. Stale or equal-time grants fail without changing a previous withdrawal or its revision. An unrelated purpose remains independent. `State.Withdraw` continues to apply even if the local clock goes backward, because user withdrawal must not be blocked by a timestamp ordering error. Negative tests exercise stale re-grant after withdrawal, equal timestamp, no partial state mutation, current re-grant and late withdrawal.
+
+This is deliberately **not** replay-resistant consent. Timestamps can be forged or arrive out of order, clocks can skew, and the local synthetic state lacks trusted operation IDs, authenticated subjects, durable owner fencing or verified downstream withdrawal. A re-grant timestamp newer than a skewed withdrawal may still be accepted. Production integration requires source-authenticated, monotonic operation/revision fencing and confirmation of actual owner-side effects. No real optional processing or product integration is authorized by these local checks.
