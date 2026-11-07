@@ -23,11 +23,13 @@ type State struct {
 
 func EmptyState() State { return State{SchemaVersion: 1, Choices: map[string]Choice{}} }
 
-// Allowed always fails closed for missing, unknown, or outdated grants.
+// Allowed fails closed for missing, unknown, outdated, or corrupt states.
+// A valid grant within a partially corrupted state is not an authorization.
 func (s State) Allowed(purposeID string) bool {
-	// Unsupported schemas and legacy state lacking a revision cannot authorize
-	// a new synthetic action, even when a caller bypasses storage validation.
-	if s.SchemaVersion != 1 || s.Revision == 0 {
+	// Direct callers may bypass the store's integrity check. Never authorize
+	// any synthetic action from a state with an invalid *unrelated* decision.
+	// Legacy unversioned grants remain denied even if their state validates.
+	if s.Revision == 0 || s.Validate() != nil {
 		return false
 	}
 	purpose, ok := FindPurpose(purposeID)
