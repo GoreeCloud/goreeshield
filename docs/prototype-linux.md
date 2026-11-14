@@ -32,7 +32,7 @@ The example grant is a **recorded local example choice**, not the activation of 
 ## Data handling
 
 - Default storage: `$XDG_STATE_HOME/goreeshield/choices.json` or `$HOME/.local/state/goreeshield/choices.json`.
-- Local state directory is private (0700); the choice and lock files are private (0600); symlink state files, unsafe permissions, malformed data, and unrecognized schemas fail closed. The draft local JSON state reader also enforces a 1 MiB input cap, rejects duplicate object keys (including escape-equivalent names), and limits scanner container nesting to 64 levels. This is parser hardening for synthetic data, not tamper-proof production consent storage.
+- Local state directory is private (0700); the choice and lock files are private (0600); symlink state files, **multiply linked regular state/lock inodes**, unsafe permissions, malformed data, and unrecognized schemas fail closed. Hard-link checks inspect Linux inode link count after open; they are **not** a guarantee against a compromised user or unsafe ancestor paths. The draft local JSON state reader also enforces a 1 MiB input cap, rejects duplicate object keys (including escape-equivalent names), and limits scanner container nesting to 64 levels. This is parser hardening for synthetic data, not tamper-proof production consent storage.
 - Updates serialize with an OS file lock and use atomic rename and file/directory sync; state stores only the last decision per synthetic purpose, its notice version and timestamp.
 - Missing, unknown, withdrawn or stale-notice choices never permit an optional purpose.
 - This is not an append-only audit ledger and has no guarantee of protection against a compromised local OS user, unsafe ancestors, backup exposure, or disk tampering.
