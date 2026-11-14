@@ -9,9 +9,9 @@ import (
 
 func TestRejectDuplicateJSONKeysAtEveryDepth(t *testing.T) {
 	for _, test := range []struct {
-		name string
+		name    string
 		payload string
-		valid bool
+		valid   bool
 	}{
 		{"valid", `{"schema_version":1,"revision":0,"choices":{}}`, true},
 		{"duplicate_root", `{"schema_version":1,"revision":0,"revision":1,"choices":{}}`, false},
