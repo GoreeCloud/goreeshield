@@ -74,7 +74,7 @@ func rejectDuplicateJSONKeys(data []byte) error {
 		}
 		return nil
 	}
-	if err := visit(depth + 1); err != nil {
+	if err := visit(1); err != nil {
 		return errors.New("invalid or ambiguous JSON state")
 	}
 	if _, err := decoder.Token(); !errors.Is(err, io.EOF) {
