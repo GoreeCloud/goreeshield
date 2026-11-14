@@ -51,7 +51,10 @@ func (s Store) checkDirectory() (string, error) {
 }
 
 func privateRegular(info os.FileInfo) bool {
-	return info.Mode().IsRegular() && info.Mode().Perm()&0077 == 0
+	// A second hard link can expose a 0600 state/lock inode outside this
+	// private directory. Symlink checks alone do not detect hard links.
+	stat, ok := info.Sys().(*syscall.Stat_t)
+	return ok && info.Mode().IsRegular() && info.Mode().Perm()&0077 == 0 && stat.Nlink == 1
 }
 
 // withLock serializes cooperating readers and writers across CLI processes.
