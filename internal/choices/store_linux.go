@@ -3,6 +3,7 @@
 package choices
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -50,7 +51,10 @@ func (s Store) checkDirectory() (string, error) {
 }
 
 func privateRegular(info os.FileInfo) bool {
-	return info.Mode().IsRegular() && info.Mode().Perm()&0077 == 0
+	// A second hard link can expose a 0600 state/lock inode outside this
+	// private directory. Symlink checks alone do not detect hard links.
+	stat, ok := info.Sys().(*syscall.Stat_t)
+	return ok && info.Mode().IsRegular() && info.Mode().Perm()&0077 == 0 && stat.Nlink == 1
 }
 
 // withLock serializes cooperating readers and writers across CLI processes.
@@ -99,8 +103,21 @@ func (s Store) readUnlocked() (State, error) {
 	if info.Size() > 1024*1024 {
 		return State{}, errors.New("state file exceeds 1 MiB limit")
 	}
+	// Reject ambiguous JSON object keys before Go's normal decoder can
+	// silently let a later duplicate overwrite an earlier privacy decision.
+	// Always cap the actual read as well as checking the original file size.
+	payload, err := io.ReadAll(io.LimitReader(f, 1024*1024+1))
+	if err != nil {
+		return State{}, err
+	}
+	if len(payload) > 1024*1024 {
+		return State{}, errors.New("state file exceeds 1 MiB limit")
+	}
+	if err := rejectDuplicateJSONKeys(payload); err != nil {
+		return State{}, err
+	}
 	var state State
-	dec := json.NewDecoder(io.LimitReader(f, 1024*1024+1))
+	dec := json.NewDecoder(bytes.NewReader(payload))
 	dec.DisallowUnknownFields()
 	if err := dec.Decode(&state); err != nil {
 		return State{}, fmt.Errorf("state decode failed: %w", err)
