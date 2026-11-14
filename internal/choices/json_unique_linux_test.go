@@ -15,7 +15,7 @@ func TestRejectDuplicateJSONKeysAtEveryDepth(t *testing.T) {
 	}{
 		{"valid", `{"schema_version":1,"revision":0,"choices":{}}`, true},
 		{"duplicate_root", `{"schema_version":1,"revision":0,"revision":1,"choices":{}}`, false},
-		{"escaped_duplicate_root", `{"schema_version":1,"schem\\u0061_version":1,"revision":0,"choices":{}}`, false},
+		{"escaped_duplicate_root", `{"schema_version":1,"schem\u0061_version":1,"revision":0,"choices":{}}`, false},
 		{"duplicate_purpose", `{"schema_version":1,"revision":0,"choices":{"demo-local-metrics":{},"demo-local-metrics":{}}}`, false},
 		{"duplicate_nested_choice", `{"schema_version":1,"revision":1,"choices":{"demo-local-metrics":{"granted":true,"granted":false}}}`, false},
 		{"reused_key_in_independent_objects", `[{"key":1},{"key":2}]`, true},
@@ -31,7 +31,11 @@ func TestRejectDuplicateJSONKeysAtEveryDepth(t *testing.T) {
 }
 
 func TestLocalChoicesStoreRejectsAmbiguousJSONBeforePrivacyDecision(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "state.json")
+	privateDir := t.TempDir()
+	if err := os.Chmod(privateDir, 0700); err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(privateDir, "state.json")
 	store := Store{Path: path}
 	for _, payload := range []string{
 		`{"schema_version":1,"revision":0,"revision":1,"choices":{}}`,
