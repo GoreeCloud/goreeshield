@@ -18,9 +18,6 @@ func rejectDuplicateJSONKeys(data []byte) error {
 	visit = func(depth int) error {
 		// The input is bounded in bytes, but it can still have thousands of
 		// nested containers. Bound recursive validation work before stack growth.
-		if depth > maxNesting {
-			return errors.New("JSON nesting limit exceeded")
-		}
 		token, err := decoder.Token()
 		if err != nil {
 			return err
@@ -28,6 +25,11 @@ func rejectDuplicateJSONKeys(data []byte) error {
 		delim, ok := token.(json.Delim)
 		if !ok {
 			return nil
+		}
+		// Count nested containers only, not the scalar leaf of the last
+		// permitted container. Excessive depth is refused before descent.
+		if depth > maxNesting {
+			return errors.New("JSON nesting limit exceeded")
 		}
 		switch delim {
 		case '{':
