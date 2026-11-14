@@ -3,6 +3,7 @@
 package choices
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -99,8 +100,21 @@ func (s Store) readUnlocked() (State, error) {
 	if info.Size() > 1024*1024 {
 		return State{}, errors.New("state file exceeds 1 MiB limit")
 	}
+	// Reject ambiguous JSON object keys before Go's normal decoder can
+	// silently let a later duplicate overwrite an earlier privacy decision.
+	// Always cap the actual read as well as checking the original file size.
+	payload, err := io.ReadAll(io.LimitReader(f, 1024*1024+1))
+	if err != nil {
+		return State{}, err
+	}
+	if len(payload) > 1024*1024 {
+		return State{}, errors.New("state file exceeds 1 MiB limit")
+	}
+	if err := rejectDuplicateJSONKeys(payload); err != nil {
+		return State{}, err
+	}
 	var state State
-	dec := json.NewDecoder(io.LimitReader(f, 1024*1024+1))
+	dec := json.NewDecoder(bytes.NewReader(payload))
 	dec.DisallowUnknownFields()
 	if err := dec.Decode(&state); err != nil {
 		return State{}, fmt.Errorf("state decode failed: %w", err)
