@@ -12,9 +12,15 @@ import (
 // duplicates and would otherwise silently replace earlier decisions.
 // Never echo a user-supplied key in errors: even field names may be private.
 func rejectDuplicateJSONKeys(data []byte) error {
+	const maxNesting = 64 // local state records are much shallower
 	decoder := json.NewDecoder(bytes.NewReader(data))
-	var visit func() error
-	visit = func() error {
+	var visit func(depth int) error
+	visit = func(depth int) error {
+		// The input is bounded in bytes, but it can still have thousands of
+		// nested containers. Bound recursive validation work before stack growth.
+		if depth > maxNesting {
+			return errors.New("JSON nesting limit exceeded")
+		}
 		token, err := decoder.Token()
 		if err != nil {
 			return err
@@ -39,7 +45,7 @@ func rejectDuplicateJSONKeys(data []byte) error {
 					return errors.New("duplicate JSON object key")
 				}
 				seen[name] = struct{}{}
-				if err := visit(); err != nil {
+				if err := visit(depth + 1); err != nil {
 					return err
 				}
 			}
@@ -52,7 +58,7 @@ func rejectDuplicateJSONKeys(data []byte) error {
 			}
 		case '[':
 			for decoder.More() {
-				if err := visit(); err != nil {
+				if err := visit(depth + 1); err != nil {
 					return err
 				}
 			}
@@ -68,7 +74,7 @@ func rejectDuplicateJSONKeys(data []byte) error {
 		}
 		return nil
 	}
-	if err := visit(); err != nil {
+	if err := visit(depth + 1); err != nil {
 		return errors.New("invalid or ambiguous JSON state")
 	}
 	if _, err := decoder.Token(); !errors.Is(err, io.EOF) {
