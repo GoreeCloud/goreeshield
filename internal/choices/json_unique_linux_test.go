@@ -66,14 +66,14 @@ func TestDuplicateKeyScannerRejectsExcessiveJSONNesting(t *testing.T) {
 	// Test the boundary with independent nested arrays and objects.
 	// Arbitrary depth must be rejected before recursive validator exhaustion.
 	for _, tc := range []struct {
-		name string
-		valid string
+		name    string
+		valid   string
 		tooDeep string
 	}{
 		{"arrays", strings.Repeat("[", 64) + "0" + strings.Repeat("]", 64),
 			strings.Repeat("[", 65) + "0" + strings.Repeat("]", 65)},
-		{"objects", strings.Repeat("{\\\"k\\\":", 64) + "0" + strings.Repeat("}", 64),
-			strings.Repeat("{\\\"k\\\":", 65) + "0" + strings.Repeat("}", 65)},
+		{"objects", strings.Repeat(`{"k":`, 64) + "0" + strings.Repeat("}", 64),
+			strings.Repeat(`{"k":`, 65) + "0" + strings.Repeat("}", 65)},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			if err := rejectDuplicateJSONKeys([]byte(tc.valid)); err != nil {
