@@ -6,6 +6,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -137,5 +138,33 @@ func TestConcurrentUpdateIsSerialized(t *testing.T) {
 	}
 	if got.Choices["demo-local-metrics"].Revision != got.Revision {
 		t.Fatalf("latest purpose decision does not match state revision: %+v", got)
+	}
+}
+
+func TestDecoderFailuresDoNotDiscloseUntrustedLocalFieldNames(t *testing.T) {
+	st := storeForTest(t)
+	if _, err := st.Read(); err != nil {
+		t.Fatal(err)
+	}
+	for _, payload := range []string{
+		`{"schema_version":1,"revision":0,"choices":{},"private-family-note":true}`,
+		`{"schema_version":1,"revision":"private-family-note","choices":{}}`,
+	} {
+		if err := os.WriteFile(st.Path, []byte(payload), 0600); err != nil {
+			t.Fatal(err)
+		}
+		_, err := st.Read()
+		if err == nil || err.Error() != "invalid state file" ||
+			strings.Contains(err.Error(), "private-family-note") {
+			t.Fatalf("unsafe decoder response: %v", err)
+		}
+		called := false
+		err = st.Update(func(_ *State) error {
+			called = true
+			return nil
+		})
+		if err == nil || called {
+			t.Fatalf("corrupted state allowed mutation: called=%v, err=%v", called, err)
+		}
 	}
 }

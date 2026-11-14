@@ -6,7 +6,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -120,7 +119,9 @@ func (s Store) readUnlocked() (State, error) {
 	dec := json.NewDecoder(bytes.NewReader(payload))
 	dec.DisallowUnknownFields()
 	if err := dec.Decode(&state); err != nil {
-		return State{}, fmt.Errorf("state decode failed: %w", err)
+		// Decoder errors can echo attacker-controlled JSON field names.
+		// Preserve fail-closed behavior without disclosing local private keys.
+		return State{}, errors.New("invalid state file")
 	}
 	var more any
 	if err := dec.Decode(&more); !errors.Is(err, io.EOF) {
