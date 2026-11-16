@@ -15,7 +15,7 @@ func TestRejectDuplicateJSONKeysAtEveryDepth(t *testing.T) {
 	}{
 		{"valid", `{"schema_version":1,"revision":0,"choices":{}}`, true},
 		{"duplicate_root", `{"schema_version":1,"revision":0,"revision":1,"choices":{}}`, false},
-{"duplicate_root_casefold", `{"schema_version":1,"SCHEMA_VERSION":1,"revision":0,"choices":{}}`, false},
+		{"duplicate_root_casefold", `{"schema_version":1,"SCHEMA_VERSION":1,"revision":0,"choices":{}}`, false},
 		{"duplicate_root_unicode_fold", `{"schema_version":1,"ſchema_version":1,"revision":0,"choices":{}}`, false},
 		{"duplicate_root_escaped_unicode_fold", `{"schema_version":1,"\u017fchema_version":1,"revision":0,"choices":{}}`, false},
 		{"duplicate_grant_casefold", `{"schema_version":1,"revision":1,"choices":{"demo-local-metrics":{"granted":false,"GRANTED":true}}}`, false},
