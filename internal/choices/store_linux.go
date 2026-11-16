@@ -128,7 +128,10 @@ func (s Store) readUnlocked() (State, error) {
 		return State{}, errors.New("state file contains trailing data")
 	}
 	if err := state.Validate(); err != nil {
-		return State{}, err
+		// State validation errors may include names loaded from the private
+		// local file. Do not disclose those untrusted purpose identifiers to
+		// callers or logs; reject the entire state without echoing its fields.
+		return State{}, errors.New("invalid state file")
 	}
 	if state.Choices == nil {
 		state.Choices = map[string]Choice{}
