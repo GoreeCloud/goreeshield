@@ -5,7 +5,25 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"strings"
+	"unicode"
 )
+
+// jsonFieldFoldKey maps a JSON key to the minimum rune in each Unicode
+// simple-fold equivalence class, matching encoding/json's case-insensitive
+// struct-field lookup. It is linear in key length; the state file can be 1 MiB,
+// so repeated pairwise EqualFold comparisons would be needlessly quadratic.
+func jsonFieldFoldKey(key string) string {
+	return strings.Map(func(char rune) rune {
+		min := char
+		for next := unicode.SimpleFold(char); next != char; next = unicode.SimpleFold(next) {
+			if next < min {
+				min = next
+			}
+		}
+		return min
+	}, key)
+}
 
 // rejectDuplicateJSONKeys rejects ambiguity at every object depth, including
 // escaped spellings of the same key. Go's ordinary JSON decoder accepts
@@ -43,10 +61,14 @@ func rejectDuplicateJSONKeys(data []byte) error {
 				if !ok {
 					return errors.New("invalid JSON object key")
 				}
-				if _, duplicate := seen[name]; duplicate {
+				// Go's JSON decoder also folds case and Unicode aliases when
+				// binding struct fields. Never allow a later semantic alias to
+				// silently overwrite a prior choice or schema value.
+				folded := jsonFieldFoldKey(name)
+				if _, duplicate := seen[folded]; duplicate {
 					return errors.New("duplicate JSON object key")
 				}
-				seen[name] = struct{}{}
+				seen[folded] = struct{}{}
 				if err := visit(depth + 1); err != nil {
 					return err
 				}
