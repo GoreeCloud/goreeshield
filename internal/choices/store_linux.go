@@ -159,7 +159,10 @@ func (s Store) Update(edit func(*State) error) error {
 			return err
 		}
 		if err = state.Validate(); err != nil {
-			return err
+			// A caller-provided mutation can introduce an unrecognized private
+			// purpose identifier. Never return that identifier via validation
+			// errors when rejecting the mutation before persistence.
+			return errors.New("invalid state mutation")
 		}
 		out, err := os.CreateTemp(parent, ".choices-*.tmp")
 		if err != nil {
