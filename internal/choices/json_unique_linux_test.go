@@ -15,6 +15,10 @@ func TestRejectDuplicateJSONKeysAtEveryDepth(t *testing.T) {
 	}{
 		{"valid", `{"schema_version":1,"revision":0,"choices":{}}`, true},
 		{"duplicate_root", `{"schema_version":1,"revision":0,"revision":1,"choices":{}}`, false},
+{"duplicate_root_casefold", `{"schema_version":1,"SCHEMA_VERSION":1,"revision":0,"choices":{}}`, false},
+		{"duplicate_root_unicode_fold", `{"schema_version":1,"ſchema_version":1,"revision":0,"choices":{}}`, false},
+		{"duplicate_root_escaped_unicode_fold", `{"schema_version":1,"\u017fchema_version":1,"revision":0,"choices":{}}`, false},
+		{"duplicate_grant_casefold", `{"schema_version":1,"revision":1,"choices":{"demo-local-metrics":{"granted":false,"GRANTED":true}}}`, false},
 		{"escaped_duplicate_root", `{"schema_version":1,"schem\u0061_version":1,"revision":0,"choices":{}}`, false},
 		{"duplicate_purpose", `{"schema_version":1,"revision":0,"choices":{"demo-local-metrics":{},"demo-local-metrics":{}}}`, false},
 		{"duplicate_nested_choice", `{"schema_version":1,"revision":1,"choices":{"demo-local-metrics":{"granted":true,"granted":false}}}`, false},
@@ -41,6 +45,7 @@ func TestLocalChoicesStoreRejectsAmbiguousJSONBeforePrivacyDecision(t *testing.T
 		`{"schema_version":1,"revision":0,"revision":1,"choices":{}}`,
 		`{"schema_version":1,"revision":1,"choices":{"demo-local-metrics":{"granted":true,"notice_version":"1","changed_at":"2026-11-07T00:00:00Z","revision":1},"demo-local-metrics":{"granted":false,"notice_version":"1","changed_at":"2026-11-07T00:00:00Z","revision":1}}}`,
 		`{"schema_version":1,"revision":0,"choices":{},"private-secret-key":"foo","private-secret-key":"bar"}`,
+		`{"schema_version":1,"revision":1,"choices":{"demo-local-metrics":{"granted":false,"GRANTED":true,"notice_version":"1","changed_at":"2026-11-07T00:00:00Z","revision":1}}}`,
 	} {
 		if err := os.WriteFile(path, []byte(payload), 0600); err != nil {
 			t.Fatal(err)
