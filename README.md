@@ -56,3 +56,7 @@ The governing requirements and documentation authority reside in the authorized 
 Before claiming a privacy capability is functional, verify its implementation and representative behavior, including correct allowed/denied data flows, consent and preference changes, service-side enforcement, failure handling, accessibility, and appropriate privacy-preserving audit evidence.
 
 Do not treat a README, mock UI, placeholder API, or future integration plan as an operational privacy feature.
+
+## License
+
+The GoreeCloud-controlled source and documentation currently contained in this repository are provided under the [Apache License, Version 2.0](LICENSE). The existing `main` branch currently contains product and engineering documentation, not an operational privacy service; experimental Choices code in separate unmerged pull requests is subject to independent dependency, provenance, contributor-rights and acceptance review before incorporation. Any future third-party code, licensed content, data, icons, fonts or dependencies retain their separate applicable licenses and notices.
