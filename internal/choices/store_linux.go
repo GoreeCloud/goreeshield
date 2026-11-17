@@ -43,17 +43,26 @@ func (s Store) checkDirectory() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	if !info.IsDir() || info.Mode()&os.ModeSymlink != 0 || info.Mode().Perm()&0077 != 0 {
-		return "", errors.New("state directory must be a non-symlink private directory (0700)")
+	if !privateDirectory(info) {
+		return "", errors.New("state directory must be an owner-held private directory (0700)")
 	}
 	return parent, nil
+}
+
+func privateDirectory(info os.FileInfo) bool {
+	stat, ok := info.Sys().(*syscall.Stat_t)
+	return ok && info.IsDir() && info.Mode()&os.ModeSymlink == 0 &&
+		info.Mode().Perm()&0077 == 0 && stat.Uid == uint32(os.Geteuid())
 }
 
 func privateRegular(info os.FileInfo) bool {
 	// A second hard link can expose a 0600 state/lock inode outside this
 	// private directory. Symlink checks alone do not detect hard links.
+	// Check the owner as well as the mode: a privileged process must not
+	// adopt a different account's local consent file or lock.
 	stat, ok := info.Sys().(*syscall.Stat_t)
-	return ok && info.Mode().IsRegular() && info.Mode().Perm()&0077 == 0 && stat.Nlink == 1
+	return ok && info.Mode().IsRegular() && info.Mode().Perm()&0077 == 0 &&
+		stat.Nlink == 1 && stat.Uid == uint32(os.Geteuid())
 }
 
 // withLock serializes cooperating readers and writers across CLI processes.
