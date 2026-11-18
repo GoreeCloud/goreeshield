@@ -4,11 +4,14 @@ package choices
 
 import (
 	"bytes"
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"syscall"
 )
 
@@ -31,43 +34,88 @@ func DefaultPath() (string, error) {
 	return filepath.Join(base, "goreeshield", "choices.json"), nil
 }
 
-func (s Store) checkDirectory() (string, error) {
+// checkDirectory walks the absolute parent from / using Linux directory FDs.
+// No path component is followed through a symlink, even while creating a
+// previously missing directory. The returned parent remains pinned for every
+// local state/lock operation; callers must close it.
+func (s Store) checkDirectory() (*os.File, error) {
 	if !filepath.IsAbs(s.Path) {
-		return "", errors.New("state path must be absolute")
+		return nil, errors.New("state path must be absolute")
 	}
-	parent := filepath.Dir(filepath.Clean(s.Path))
-	if err := os.MkdirAll(parent, 0700); err != nil {
-		return "", err
+	clean := filepath.Clean(s.Path)
+	name := filepath.Base(clean)
+	if name == "." || name == "/" || name == ".." {
+		return nil, errors.New("state path must identify a file")
 	}
-	info, err := os.Lstat(parent)
+	parentPath := filepath.Dir(clean)
+	fd, err := syscall.Open("/", syscall.O_RDONLY|syscall.O_DIRECTORY|syscall.O_CLOEXEC, 0)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
-	if !info.IsDir() || info.Mode()&os.ModeSymlink != 0 || info.Mode().Perm()&0077 != 0 {
-		return "", errors.New("state directory must be a non-symlink private directory (0700)")
+	current := os.NewFile(uintptr(fd), "/")
+	for _, part := range strings.Split(strings.TrimPrefix(parentPath, "/"), "/") {
+		if part == "" {
+			continue
+		}
+		flags := syscall.O_RDONLY | syscall.O_DIRECTORY | syscall.O_NOFOLLOW | syscall.O_CLOEXEC
+		next, openErr := syscall.Openat(int(current.Fd()), part, flags, 0)
+		if errors.Is(openErr, syscall.ENOENT) {
+			if mkErr := syscall.Mkdirat(int(current.Fd()), part, 0700); mkErr != nil && !errors.Is(mkErr, syscall.EEXIST) {
+				current.Close()
+				return nil, mkErr
+			}
+			next, openErr = syscall.Openat(int(current.Fd()), part, flags, 0)
+		}
+		if openErr != nil {
+			current.Close()
+			return nil, errors.New("unsafe state directory ancestor")
+		}
+		current.Close()
+		current = os.NewFile(uintptr(next), part)
 	}
-	return parent, nil
+	info, err := current.Stat()
+	if err != nil {
+		current.Close()
+		return nil, err
+	}
+	if !privateDirectory(info) {
+		current.Close()
+		return nil, errors.New("state directory must be an owner-held private directory (0700)")
+	}
+	return current, nil
+}
+
+func privateDirectory(info os.FileInfo) bool {
+	stat, ok := info.Sys().(*syscall.Stat_t)
+	return ok && info.IsDir() && info.Mode()&os.ModeSymlink == 0 &&
+		info.Mode().Perm()&0077 == 0 && stat.Uid == uint32(os.Geteuid())
 }
 
 func privateRegular(info os.FileInfo) bool {
 	// A second hard link can expose a 0600 state/lock inode outside this
 	// private directory. Symlink checks alone do not detect hard links.
+	// Check the owner as well as the mode: a privileged process must not
+	// adopt a different account's local consent file or lock.
 	stat, ok := info.Sys().(*syscall.Stat_t)
-	return ok && info.Mode().IsRegular() && info.Mode().Perm()&0077 == 0 && stat.Nlink == 1
+	return ok && info.Mode().IsRegular() && info.Mode().Perm()&0077 == 0 &&
+		stat.Nlink == 1 && stat.Uid == uint32(os.Geteuid())
 }
 
 // withLock serializes cooperating readers and writers across CLI processes.
-func (s Store) withLock(fn func(string) error) error {
+// All operations use the pinned private-directory handle, not a re-resolved
+// absolute pathname that might follow a replaced ancestor.
+func (s Store) withLock(fn func(*os.File) error) error {
 	parent, err := s.checkDirectory()
 	if err != nil {
 		return err
 	}
-	lockPath := filepath.Join(parent, ".choices.lock")
-	// O_NOFOLLOW avoids opening a symlink placed at the lock path.
-	lock, err := os.OpenFile(lockPath, os.O_CREATE|os.O_RDWR|syscall.O_NOFOLLOW, 0600)
+	defer parent.Close()
+	fd, err := syscall.Openat(int(parent.Fd()), ".choices.lock",
+		syscall.O_CREAT|syscall.O_RDWR|syscall.O_NOFOLLOW|syscall.O_CLOEXEC, 0600)
 	if err != nil {
 		return err
 	}
+	lock := os.NewFile(uintptr(fd), ".choices.lock")
 	defer lock.Close()
 	info, err := lock.Stat()
 	if err != nil {
@@ -80,17 +128,33 @@ func (s Store) withLock(fn func(string) error) error {
 		return err
 	}
 	defer syscall.Flock(int(lock.Fd()), syscall.LOCK_UN)
+	// Another cooperating process must not have acquired a newly replaced
+	// lock path. Malicious concurrent activity by the SAME Unix account
+	// remains outside this prototype's protection contract.
+	checkFD, err := syscall.Openat(int(parent.Fd()), ".choices.lock",
+		syscall.O_RDONLY|syscall.O_NOFOLLOW|syscall.O_CLOEXEC, 0)
+	if err != nil {
+		return errors.New("state lock path changed")
+	}
+	visible := os.NewFile(uintptr(checkFD), ".choices.lock")
+	visibleInfo, visibleErr := visible.Stat()
+	visible.Close()
+	if visibleErr != nil || !os.SameFile(info, visibleInfo) {
+		return errors.New("state lock path changed")
+	}
 	return fn(parent)
 }
 
-func (s Store) readUnlocked() (State, error) {
-	f, err := os.OpenFile(s.Path, os.O_RDONLY|syscall.O_NOFOLLOW, 0)
+func (s Store) readUnlocked(parent *os.File) (State, error) {
+	fd, err := syscall.Openat(int(parent.Fd()), filepath.Base(filepath.Clean(s.Path)),
+		syscall.O_RDONLY|syscall.O_NOFOLLOW|syscall.O_CLOEXEC, 0)
 	if errors.Is(err, os.ErrNotExist) {
 		return EmptyState(), nil
 	}
 	if err != nil {
 		return State{}, err
 	}
+	f := os.NewFile(uintptr(fd), "choices.json")
 	defer f.Close()
 	info, err := f.Stat()
 	if err != nil {
@@ -141,17 +205,17 @@ func (s Store) readUnlocked() (State, error) {
 
 func (s Store) Read() (State, error) {
 	var state State
-	err := s.withLock(func(_ string) error {
+	err := s.withLock(func(parent *os.File) error {
 		var e error
-		state, e = s.readUnlocked()
+		state, e = s.readUnlocked(parent)
 		return e
 	})
 	return state, err
 }
 
 func (s Store) Update(edit func(*State) error) error {
-	return s.withLock(func(parent string) error {
-		state, err := s.readUnlocked()
+	return s.withLock(func(parent *os.File) error {
+		state, err := s.readUnlocked(parent)
 		if err != nil {
 			return err
 		}
@@ -159,24 +223,38 @@ func (s Store) Update(edit func(*State) error) error {
 			return err
 		}
 		if err = state.Validate(); err != nil {
-			// A caller-provided mutation can introduce an unrecognized private
-			// purpose identifier. Never return that identifier via validation
-			// errors when rejecting the mutation before persistence.
+			// Never expose untrusted private purpose identifiers.
 			return errors.New("invalid state mutation")
 		}
-		out, err := os.CreateTemp(parent, ".choices-*.tmp")
+		// A private state that we can successfully write must remain readable
+		// under readUnlocked's hard 1 MiB ceiling. Validate the exact
+		// pretty-printed on-disk byte count before creating a temp file, so
+		// a large but otherwise schema-valid edit cannot corrupt availability
+		// or replace the previously readable choice history.
+		payload, err := json.MarshalIndent(state, "", "  ")
+		if err != nil {
+			return errors.New("invalid state mutation")
+		}
+		if len(payload) >= 1024*1024 {
+			return errors.New("state update exceeds 1 MiB limit")
+		}
+		payload = append(payload, '\n')
+		var nonce [16]byte
+		if _, err := rand.Read(nonce[:]); err != nil {
+			return err
+		}
+		tmp := ".choices-" + hex.EncodeToString(nonce[:]) + ".tmp"
+		dirFD := int(parent.Fd())
+		fd, err := syscall.Openat(dirFD, tmp,
+			syscall.O_WRONLY|syscall.O_CREAT|syscall.O_EXCL|syscall.O_NOFOLLOW|syscall.O_CLOEXEC, 0600)
 		if err != nil {
 			return err
 		}
-		tmp := out.Name()
-		defer os.Remove(tmp)
-		if err = out.Chmod(0600); err != nil {
-			out.Close()
-			return err
-		}
-		enc := json.NewEncoder(out)
-		enc.SetIndent("", "  ")
-		if err = enc.Encode(state); err != nil {
+		// Removal always addresses this pinned private directory, even if
+		// a pathname ancestor is subsequently replaced.
+		defer syscall.Unlinkat(dirFD, tmp)
+		out := os.NewFile(uintptr(fd), tmp)
+		if _, err = out.Write(payload); err != nil {
 			out.Close()
 			return err
 		}
@@ -187,14 +265,9 @@ func (s Store) Update(edit func(*State) error) error {
 		if err = out.Close(); err != nil {
 			return err
 		}
-		if err = os.Rename(tmp, s.Path); err != nil {
+		if err = syscall.Renameat(dirFD, tmp, dirFD, filepath.Base(filepath.Clean(s.Path))); err != nil {
 			return err
 		}
-		dir, err := os.Open(parent)
-		if err != nil {
-			return err
-		}
-		defer dir.Close()
-		return dir.Sync()
+		return parent.Sync()
 	})
 }
