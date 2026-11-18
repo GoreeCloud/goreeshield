@@ -2,7 +2,10 @@
 
 package choices
 
-import "errors"
+import (
+	"errors"
+	"os"
+)
 
 // WithMatchingRevision is a LOCAL, short-lived synthetic operation gate.
 // It requires an exact notice and choice revision while the same file lock
@@ -18,8 +21,8 @@ func (s Store) WithMatchingRevision(purposeID, noticeVersion string, revision ui
 		return false, errors.New("synthetic action is required")
 	}
 	performed := false
-	err := s.withLock(func(_ string) error {
-		state, err := s.readUnlocked()
+	err := s.withLock(func(parent *os.File) error {
+		state, err := s.readUnlocked(parent)
 		if err != nil {
 			return err
 		}
