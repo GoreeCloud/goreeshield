@@ -2,7 +2,10 @@
 
 package choices
 
-import "errors"
+import (
+	"errors"
+	"os"
+)
 
 // WithAllowed serializes an in-process synthetic action with local changes to
 // the same purpose's choice. The callback is invoked only while that purpose
@@ -22,8 +25,8 @@ func (s Store) WithAllowed(purposeID string, action func() error) (bool, error) 
 	}
 
 	performed := false
-	err := s.withLock(func(_ string) error {
-		state, err := s.readUnlocked()
+	err := s.withLock(func(parent *os.File) error {
+		state, err := s.readUnlocked(parent)
 		if err != nil {
 			return err
 		}
