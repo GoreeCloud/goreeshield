@@ -226,6 +226,19 @@ func (s Store) Update(edit func(*State) error) error {
 			// Never expose untrusted private purpose identifiers.
 			return errors.New("invalid state mutation")
 		}
+		// A private state that we can successfully write must remain readable
+		// under readUnlocked's hard 1 MiB ceiling. Validate the exact
+		// pretty-printed on-disk byte count before creating a temp file, so
+		// a large but otherwise schema-valid edit cannot corrupt availability
+		// or replace the previously readable choice history.
+		payload, err := json.MarshalIndent(state, "", "  ")
+		if err != nil {
+			return errors.New("invalid state mutation")
+		}
+		if len(payload) >= 1024*1024 {
+			return errors.New("state update exceeds 1 MiB limit")
+		}
+		payload = append(payload, '\n')
 		var nonce [16]byte
 		if _, err := rand.Read(nonce[:]); err != nil {
 			return err
@@ -241,9 +254,7 @@ func (s Store) Update(edit func(*State) error) error {
 		// a pathname ancestor is subsequently replaced.
 		defer syscall.Unlinkat(dirFD, tmp)
 		out := os.NewFile(uintptr(fd), tmp)
-		enc := json.NewEncoder(out)
-		enc.SetIndent("", "  ")
-		if err = enc.Encode(state); err != nil {
+		if _, err = out.Write(payload); err != nil {
 			out.Close()
 			return err
 		}
