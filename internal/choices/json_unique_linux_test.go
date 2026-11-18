@@ -93,3 +93,23 @@ func TestDuplicateKeyScannerRejectsExcessiveJSONNesting(t *testing.T) {
 		t.Fatal("unclosed adversarial nesting unexpectedly accepted")
 	}
 }
+
+func TestStoreReadDoesNotDiscloseUntrustedStatePurposeInErrors(t *testing.T) {
+	privateDir := t.TempDir()
+	if err := os.Chmod(privateDir, 0700); err != nil {
+		t.Fatal(err)
+	}
+	store := Store{Path: filepath.Join(privateDir, "state.json")}
+	const privateName = "private-family-sensitive-identifier"
+	payload := `{"schema_version":1,"revision":1,"choices":{"` + privateName + `":{"granted":false,"notice_version":"1","changed_at":"2026-11-07T00:00:00Z","revision":1}}}`
+	if err := os.WriteFile(store.Path, []byte(payload), 0600); err != nil {
+		t.Fatal(err)
+	}
+	_, err := store.Read()
+	if err == nil {
+		t.Fatal("unrecognized private purpose was accepted")
+	}
+	if strings.Contains(err.Error(), privateName) {
+		t.Fatal("validation error discloses private state key")
+	}
+}

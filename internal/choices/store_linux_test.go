@@ -168,3 +168,22 @@ func TestDecoderFailuresDoNotDiscloseUntrustedLocalFieldNames(t *testing.T) {
 		}
 	}
 }
+
+func TestUpdateDoesNotDisclosePrivateUnrecognizedPurpose(t *testing.T) {
+	st := storeForTest(t)
+	const privateName = "private-family-correlation-identifier"
+	err := st.Update(func(s *State) error {
+		s.Choices[privateName] = Choice{NoticeVersion: "1", ChangedAt: fixed, Revision: 1}
+		return nil
+	})
+	if err == nil {
+		t.Fatal("invalid private state mutation accepted")
+	}
+	if strings.Contains(err.Error(), privateName) {
+		t.Fatal("mutator disclosed a private purpose key")
+	}
+	state, err := st.Read()
+	if err != nil || state.Allowed("demo-local-metrics") {
+		t.Fatalf("failed mutation modified persisted state: %v", err)
+	}
+}
